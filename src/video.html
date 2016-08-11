@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="renderer" content="webkit">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>panorama video</title>
+    <link rel="stylesheet" href="css/vr-video.min.css">
+    <style>
+        body {margin: 0;}
+        /*#container{height: 500px;}*/
+    </style>
+</head>
+<body>
+
+<div id="container">
+
+</div>
+
+<script src="js/three.min.js"></script>
+<script src="js/three-extend.min.js"></script>
+<script src="js/vr-video.min.js"></script>
+<script>
+    var fn = videoJs(document.getElementById("container"), {
+//        src: "http://video-player.720yun.com/@/6b025cfgwyv/pc_1469785165.mp4?wsiphost=local",
+        src: "http://cache.utovr.com/s1dwhwa1sofb3pczsj/L2_1920_3_25.mp4",
+        ratio: 3 / 5
+    });
+
+    console.log(fn);
+
+    fn.on("error", function(event) {
+        alert(this.error.code);
+    })
+</script>
+</body>
+</html>
