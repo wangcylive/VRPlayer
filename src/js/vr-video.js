@@ -22,7 +22,7 @@
 
     var RADIUS = 100,      // VR视角球体半径
         DEFAULT_FOV = 75,  // 初始 camera 视角
-        MIN_FOV = 60,      // camera 视角最大值
+        MIN_FOV = 30,      // camera 视角最大值
         MAX_FOV = 120;     // camera 视角最小值
 
     var supportOrientation = 1;  // 是否支持陀螺仪,加载后检测是否支持
@@ -1579,7 +1579,7 @@
     videoJs.prototype.init.prototype = videoJs.prototype;
 
     if ("function" === typeof define && define.amd) {
-        define(function () {
+        define(["three", "three-extend"], function () {
             return videoJs;
         });
     } else if ("object" === typeof exports) {

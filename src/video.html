@@ -18,21 +18,36 @@
 
 </div>
 
-<script src="js/three.min.js"></script>
+<script src="js/require.js"></script>
+<!--<script src="js/three.min.js"></script>
 <script src="js/three-extend.min.js"></script>
-<script src="js/vr-video.min.js"></script>
+<script src="js/vr-video.min.js"></script>-->
 <script>
-    var fn = videoJs(document.getElementById("container"), {
-//        src: "http://video-player.720yun.com/@/6b025cfgwyv/pc_1469785165.mp4?wsiphost=local",
-        src: "http://cache.utovr.com/s1dwhwa1sofb3pczsj/L2_1920_3_25.mp4",
-        ratio: 3 / 5
+    require.config({
+        baseUrl: "./js",
+        paths: {
+            "three": "three.min",
+            "three-extend": "three-extend"
+        }
     });
 
-    console.log(fn);
+    require(["require", "three", "three-extend", "vr-video"], function(require) {
+        var videoJs = require("vr-video");
 
-    fn.on("error", function(event) {
-        alert(this.error.code);
-    })
+        var fn = videoJs(document.getElementById("container"), {
+//        src: "http://video-player.720yun.com/@/6b025cfgwyv/pc_1469785165.mp4?wsiphost=local",
+            src: "http://cache.utovr.com/s1dwhwa1sofb3pczsj/L2_1920_3_25.mp4",
+            ratio: 3 / 5
+        });
+
+        console.log(fn);
+
+        fn.on("error", function(event) {
+            alert(this.error.code);
+        })
+
+    });
+
 </script>
 </body>
 </html>
