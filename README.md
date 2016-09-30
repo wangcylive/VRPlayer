@@ -71,7 +71,15 @@ videoOjb.on(events, handler);
 ## image
 ###usage
 ```javascript
-var imageObj = imageVR(element, src);
+var imageObj = imageVR(element, config);
+```
+
+###config
+```javascript
+config = {
+	src: "",     // image resource
+	ratio: 2/3,  // image height width ratio, default value 272/480
+}
 ```
 
 ###propetry

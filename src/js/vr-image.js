@@ -154,6 +154,11 @@
     $root.one("deviceorientation", function (event) {
         supportOrientation = null !== event.alpha;
         imageVR.fn.supportOrientation = supportOrientation;
+        imageVR.fn.testedOrientation = true;
+
+        if("function" === typeof imageVR.deviceorientation) {
+            imageVR.deviceorientation(supportOrientation);
+        }
     });
 
     function hyphenCase(propertyName) {
@@ -261,7 +266,7 @@
     }
 
     imageVR.fn = imageVR.prototype = {
-        version: "1.0.0",
+        version: "1.1.0",
         constructor: imageVR,
         fullscreen: function () {
             if (this.main) {
@@ -331,19 +336,51 @@
             return show;
         }()),
         supportWebGL: supportWebGL,
-        supportVR: supportVR
+        supportVR: supportVR,
+        supportOrientation: supportOrientation
     };
 
-    imageVR.fn.init = function(elem, src) {
+    imageVR.fn.init = function(elem, conf) {
+        if(!elem || elem.nodeType !== 1) {
+            throw new TypeError("Failed to 'imageVR' arguments, 1 argument must be 'Element'");
+        }
+
+        if(!conf || "string" !== typeof conf.src) {
+            throw new TypeError("Failed to 'imageVR' arguments, 2 argument must be 'Object' and attribute 'src' must be 'String'");
+        }
+
+        var config = {
+            ratio: 272 / 480
+        };
+
+        // 默认配置设置
+        (function () {
+            var x;
+            for (x in conf) {
+                if (conf.hasOwnProperty(x)) {
+                    config[x] = conf[x];
+                }
+            }
+        }());
+
         var _vr = this;
 
         var $main = $(elem),
-            $ui = $.createElem("div", "ul"),
+            $ratio = $.createElem("div", "ratio-vr"),
+            $ui = $.createElem("div", "ul-vr"),
             $exitVR = $.createElem("div", "exit-vr"),
-            $controls = $.createElem("div", "controls"),
+            $controls = $.createElem("div", "controls-vr"),
             $stereoEffect = $.createElem("button", "stereo"),
             $fullscreen = $.createElem("button", "fullscreen"),
             $orientation = $.createElem("button", "orientation");
+
+        $main.append($ratio);
+
+        $main.addClass("image-vr");
+
+        if(!isNaN(config.ratio)) {
+            $ratio.css("padding-top", config.ratio * 100 + "%");
+        }
 
         $exitVR.text("退出VR视角");
 
@@ -655,151 +692,147 @@
             return _vr;
         }
 
-        if(elem && elem.nodeType === 1 && src) {
-            $main.addClass("image-vr");
+        var image = new Image();
+        image.crossOrigin = "anonymous";
 
-            var image = new Image();
-            image.crossOrigin = "anonymous";
-
-            _vr.image = image;
-            _vr.main = elem;
+        _vr.image = image;
+        _vr.main = elem;
 
 
-            if(supportVR) {
-                this.fov = DEFAULT_FOV;  // 视野（角度）
-                this.isVRView = 0;       // 是否VR视角
-                this.isOrientation = 0;  // 陀螺仪控制
+        if(supportVR) {
+            this.fov = DEFAULT_FOV;  // 视野（角度）
+            this.isVRView = 0;       // 是否VR视角
+            this.isOrientation = 0;  // 陀螺仪控制
 
-                renderer = normalEffect = new THREE.WebGLRenderer();
+            renderer = normalEffect = new THREE.WebGLRenderer();
 
-                stereoEffect = new THREE.StereoEffect(renderer);
+            stereoEffect = new THREE.StereoEffect(renderer);
 
-                camera = new THREE.PerspectiveCamera(DEFAULT_FOV, elem.clientWidth / elem.clientHeight, 1, 1000);
+            camera = new THREE.PerspectiveCamera(DEFAULT_FOV, elem.clientWidth / elem.clientHeight, 1, 1000);
 
-                scene = new THREE.Scene();
+            scene = new THREE.Scene();
 
-                orientationControls = new THREE.DeviceOrientationControls(camera);
+            orientationControls = new THREE.DeviceOrientationControls(camera);
 
-                image.onload = function() {
-                    image.onload = null;
+            image.onload = function() {
+                image.onload = null;
 
-                    $controls.append($stereoEffect).append($fullscreen).append($orientation);
-                    $main.append($controls).append($exitVR).append($ui).addClass("is-ready");
+                $controls.append($stereoEffect).append($fullscreen).append($orientation);
+                $main.append($controls).append($exitVR).append($ui).addClass("is-ready");
 
-                    var width = this.width,
-                        height = this.height;
+                var width = this.width,
+                    height = this.height;
 
-                    if(width / height !== 2) {
-                        console.warn("The image size does not conform to the panoramic display, will produce deformation.");
+                if(width / height !== 2) {
+                    console.warn("The image size does not conform to the panoramic display, will produce deformation.");
+                }
+
+                texture = new THREE.Texture(image);
+                texture.needsUpdate = true;
+
+                material = new THREE.MeshBasicMaterial({
+                    map: texture
+                });
+
+                //material.side = THREE.DoubleSide;
+
+                sphere = new THREE.SphereBufferGeometry(RADIUS, 60, 60);
+                sphere.scale(-1, 1, 1);
+
+                mesh = new THREE.Mesh(sphere, material);
+                scene.add(mesh);
+
+                renderer.render(scene, camera);
+
+                $root.on("resize", vrResize);
+
+                $ui.on("mousedown", vrMouseDown).on("touchstart", vrTouchStart).on("mousemove", vrMouseMove).on("touchmove", vrTouchMove);
+
+                $ui.on("mouseup mouseout touchcancel", vrMouseUp).on("touchend", vrTouchEnd);
+
+                $stereoEffect.on("click", requestStereo);
+                $orientation.on("click", changeOrientation);
+                $exitVR.on("click", exitStereo);
+                $main.on("mousewheel MozMousePixelScroll", vrMouseWheel);
+
+                // 全屏按钮
+                $fullscreen.on("click", function () {
+                    if ($main.hasClass("is-fullscreen")) {
+                        fullscreen.exit();
+                        $body.removeClass("vr-full");
+                        $main.removeClass("is-fullscreen");
+                        $fullscreen.removeClass(btnActiveClassName);
+                    } else {
+                        fullscreen.request();
+                        $body.addClass("vr-full");
+                        $main.addClass("is-fullscreen");
+                        $fullscreen.addClass(btnActiveClassName);
                     }
 
-                    texture = new THREE.Texture(image);
-                    texture.needsUpdate = true;
+                    vrResize();
+                });
 
-                    material = new THREE.MeshBasicMaterial({
-                        map: texture
-                    });
+                // 全屏事件改变触发
+                fullscreen.on(function () {  // TODO chrome 仿移动浏览器退出全屏未触发事件
+                    if (doc[fullscreen.fullscreenElement] !== doc.documentElement) {
+                        $body.removeClass("vr-full");
+                        $main.removeClass("is-fullscreen");
+                        $fullscreen.removeClass(btnActiveClassName);
+                    }
 
-                    //material.side = THREE.DoubleSide;
+                    vrResize();
+                });
 
-                    sphere = new THREE.SphereBufferGeometry(RADIUS, 60, 60);
-                    sphere.scale(-1, 1, 1);
+                var vrUpload = function () {
+                    vr_lat = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, vr_lat));
 
-                    mesh = new THREE.Mesh(sphere, material);
-                    scene.add(mesh);
+                    var x = RADIUS * Math.cos(vr_lon) * Math.cos(vr_lat);
+
+                    var y = RADIUS * Math.sin(vr_lat);
+
+                    var z = RADIUS * Math.sin(vr_lon) * Math.cos(vr_lat);
+
+                    var target = new THREE.Vector3(x, y, z);
+
+                    if (_vr.isOrientation) {
+                        orientationControls.update();
+                    } else {
+                        camera.lookAt(target);
+                    }
+
+                    // TODO 性能监测
+                    //stats.update();
 
                     renderer.render(scene, camera);
 
-                    $root.on("resize", vrResize);
-
-                    $ui.on("mousedown", vrMouseDown).on("touchstart", vrTouchStart).on("mousemove", vrMouseMove).on("touchmove", vrTouchMove);
-
-                    $ui.on("mouseup mouseout touchcancel", vrMouseUp).on("touchend", vrTouchEnd);
-
-                    $stereoEffect.on("click", requestStereo);
-                    $orientation.on("click", changeOrientation);
-                    $exitVR.on("click", exitStereo);
-                    $main.on("mousewheel MozMousePixelScroll", vrMouseWheel);
-
-                    // 全屏按钮
-                    $fullscreen.on("click", function () {
-                        if ($main.hasClass("is-fullscreen")) {
-                            fullscreen.exit();
-                            $body.removeClass("vr-full");
-                            $main.removeClass("is-fullscreen");
-                            $fullscreen.removeClass(btnActiveClassName);
-                        } else {
-                            fullscreen.request();
-                            $body.addClass("vr-full");
-                            $main.addClass("is-fullscreen");
-                            $fullscreen.addClass(btnActiveClassName);
-                        }
-
-                        vrResize();
-                    });
-
-                    // 全屏事件改变触发
-                    fullscreen.on(function () {  // TODO chrome 仿移动浏览器退出全屏未触发事件
-                        if (doc[fullscreen.fullscreenElement] !== doc.documentElement) {
-                            $body.removeClass("vr-full");
-                            $main.removeClass("is-fullscreen");
-                            $fullscreen.removeClass(btnActiveClassName);
-                        }
-
-                        vrResize();
-                    });
-
-                    var vrUpload = function () {
-                        vr_lat = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, vr_lat));
-
-                        var x = RADIUS * Math.cos(vr_lon) * Math.cos(vr_lat);
-
-                        var y = RADIUS * Math.sin(vr_lat);
-
-                        var z = RADIUS * Math.sin(vr_lon) * Math.cos(vr_lat);
-
-                        var target = new THREE.Vector3(x, y, z);
-
-                        if (_vr.isOrientation) {
-                            orientationControls.update();
-                        } else {
-                            camera.lookAt(target);
-                        }
-
-                        // TODO 性能监测
-                        //stats.update();
-
-                        renderer.render(scene, camera);
-
-                        vrRequestID = requestAnimationFrame(vrUpload);
-                    };
-
-                    vrUpload();
-
-                    _vr.resize = vrResize;
-                    _vr.requestStereo = requestStereo;
-                    _vr.exitStereo = exitStereo;
-                    _vr.changeOrientation = changeOrientation;
+                    vrRequestID = requestAnimationFrame(vrUpload);
                 };
 
-                image.onerror = function() {
-                    image.onerror = null;
-                    _vr.toast(MESSAGES[3]);
+                vrUpload();
 
-                    throw new Error("Image resource loading errors.");
-                };
+                _vr.resize = vrResize;
+                _vr.requestStereo = requestStereo;
+                _vr.exitStereo = exitStereo;
+                _vr.changeOrientation = changeOrientation;
+            };
 
-                image.src = src;
+            image.onerror = function() {
+                image.onerror = null;
+                _vr.toast(MESSAGES[3]);
 
-                renderer.setSize(elem.clientWidth, elem.clientHeight);
-                renderer.setClearColor(0x666666);
-                domElement = renderer.domElement;
-                $main.append(domElement);
+                throw new Error("Image resource loading errors.");
+            };
 
-                // TODO 性能检测
-                /*stats = new Stats();
-                $body.append(stats.dom);*/
-            }
+            image.src = config.src;
+
+            renderer.setSize(elem.clientWidth, elem.clientHeight);
+            renderer.setClearColor(0x666666);
+            domElement = renderer.domElement;
+            $main.append(domElement);
+
+            // 性能检测
+            /*stats = new Stats();
+            $body.append(stats.dom);*/
         }
     };
 

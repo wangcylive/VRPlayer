@@ -5,10 +5,14 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
     <meta name="renderer" content="webkit">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>panorama image</title>
-    <link rel="stylesheet" href="css/vr-image.min.css">
+    <title>图片</title>
+    <link rel="stylesheet" href="css/vr-image.css">
     <style>
-        body{margin: 0;background-color: #000;}
+        body {
+            margin: 0;
+            background-color: #000;
+        }
+
         .page-loading {
             position: absolute;
             left: 50%;
@@ -20,6 +24,7 @@
             transform: translate(-50%, -50%);
             white-space: nowrap;
         }
+
         .page-loading .icon {
             display: inline-block;
             vertical-align: middle;
@@ -31,60 +36,86 @@
             -webkit-animation: rotate 1s infinite linear both;
             animation: rotate 1s infinite linear both;
         }
+
         .page-loading .text {
             vertical-align: middle;
             font-size: 16px;
             color: #fff;
         }
+
+        html, body {
+            height: 100%;
+        }
+
+        .container {
+            height: 100%;
+        }
+
     </style>
 </head>
 <body>
-    <div id="pageLoading" class="page-loading">
-        <i class="icon rotate"></i><span class="text">Loading...</span>
+<div id="pageLoading" class="page-loading">
+    <i class="icon rotate"></i><span class="text">Loading...</span>
+</div>
+
+<div class="container" id="container">
+
+</div>
+
+<!--<div class="image-vr"">
+    <div class="exit-vr">退出VR视角</div>
+    <div class="controls">
+        <button class="stereo">stereo</button>
+        <button class="fullscreen">fullScreen</button>
+        <button class="orientation">orientation</button>
     </div>
+    <div class="ul"></ul>
+</div>-->
 
-    <div class="container" id="container" style="height: 300px;">
+<script src="js/require.js"></script>
+<!--<script src="js/three.min.js"></script>
+<script src="js/three-extend.min.js"></script>
+<script src="js/vr-image.min.js"></script>-->
+<script>
+    require.config({
+        baseUrl: "./js",
+        paths: {
+            "three": "three.min",
+            "three-extend": "three-extend"
+        }
+    });
 
-    </div>
+    require(["require", "three", "three-extend", "vr-image"], function (require) {
+        var imageVR = require("vr-image");
 
-    <!--<div class="image-vr"">
-        <div class="exit-vr">退出VR视角</div>
-        <div class="controls">
-            <button class="stereo">stereo</button>
-            <button class="fullscreen">fullScreen</button>
-            <button class="orientation">orientation</button>
-        </div>
-        <div class="ul"></ul>
-    </div>-->
+        var fn = imageVR(document.getElementById("container"), {
+            src: "img/01.jpg",
+            ratio: 0.6
+        });
 
-    <script src="js/require.js"></script>
-    <!--<script src="js/three.min.js"></script>
-    <script src="js/three-extend.min.js"></script>
-    <script src="js/vr-image.min.js"></script>-->
-    <script>
-        require.config({
-            baseUrl: "./js",
-            paths: {
-                "three": "three.min",
-                "three-extend": "three-extend"
+        imageVR.deviceorientation = function(event) {
+            console.log(event);
+        };
+
+
+        fn.on("error", function () {
+            alert("图片加载失败");
+        });
+
+        fn.on("load", function () {
+            document.getElementById("pageLoading").style.display = "none";
+        });
+
+        console.log(fn);
+
+        setTimeout(function() {
+            if(fn.supportOrientation) {
+                fn.changeOrientation();
             }
-        });
+        }, 10);
 
-        require(["require", "three", "three-extend", "vr-image"], function(require) {
-            var imageVR = require("vr-image");
 
-            var fn = imageVR(document.getElementById("container"), "img/01.jpg");
-
-            console.log(fn);
-
-            /*fn.on("error", function() {
-             alert("图片加载失败");
-             });*/
-
-            fn.on("load", function() {
-                document.getElementById("pageLoading").style.display = "none";
-            });
-        });
-    </script>
+    });
+</script>
 </body>
 </html>

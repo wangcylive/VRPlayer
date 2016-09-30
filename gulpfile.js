@@ -16,7 +16,13 @@ var gulp = require("gulp"),
     rename = require("gulp-rename");
 
 gulp.task("compress", function() {
-    gulp.src(["./src/js/three-extend.js", "./src/js/vr-image.js", "./src/js/vr-video.js", "./src/css/*"],{base: "./src"})
+    gulp.src([
+        "./src/js/three-extend.js",
+        "./src/js/vr-image.js",
+        "./src/js/vr-video.js",
+        "./src/css/vr-image.css",
+        "./src/css/vr-video.css"
+    ],{base: "./src"})
         .pipe(gulpif("*.js", uglify()))
         .pipe(gulpif("*.css", cssnano()))
         .pipe(rename(function(path) {

@@ -39,7 +39,7 @@
         "视频加载中止",
         "网络错误",
         "视频解码错误",
-        "不支持播放视频资源"
+        "视频资源未找到或不支持播放视频资源"
     ];
 
     var VIDEO_STATE_MESSAGE = [
@@ -180,8 +180,12 @@
     // 支持陀螺仪检测
     $root.one("deviceorientation", function (event) {
         supportOrientation = null !== event.alpha;
-
         videoJs.fn.supportOrientation = supportOrientation;
+        imageVR.fn.testedOrientation = true;
+
+        if("function" === typeof videoJs.deviceorientation) {
+            videoJs.deviceorientation(supportOrientation);
+        }
     });
 
 
@@ -403,7 +407,7 @@
     }
 
     videoJs.fn = videoJs.prototype = {
-        version: "1.0.0",
+        version: "1.1.0",
         constructor: videoJs,
         play: function () {
             var video = this.video;
@@ -521,16 +525,35 @@
             return show;
         }()),
         supportWebGL: supportWebGL,
-        supportVR: supportVR
+        supportVR: supportVR,
+        supportOrientation: supportOrientation
     };
 
-    videoJs.fn.init = function (elem, obj) {
-        var _videoJs = this;
+    videoJs.fn.init = function (elem, conf) {
+        if(!elem || elem.nodeType !== 1) {
+            throw new Error("first argument must be Element");
+        }
+
+        if(!conf || "string" !== typeof conf.src) {
+            throw new Error("second argument must be Object and attribute src must be String");
+        }
 
         var config = {
             ratio: 272 / 480,
             vr: true
         };
+
+        // 默认配置设置
+        (function () {
+            var x;
+            for (x in conf) {
+                if (conf.hasOwnProperty(x)) {
+                    config[x] = conf[x];
+                }
+            }
+        }());
+
+        var _videoJs = this;
 
         /**
          * start VR variable
@@ -544,6 +567,9 @@
         var orientationControls;
 
         var vrRequestID;
+        /**
+         * end VR variable
+         */
 
         // 滑动控制
         var vr_isDrag = 0,
@@ -570,241 +596,264 @@
         // 视图大小
         var vr_clientWidth = elem.clientWidth,
             vr_clientHeight = elem.clientHeight;
-        /**
-         * end VR variable
-         */
+
+        var isVR = config.vr;
+
+        if (!supportVR || "object" !== typeof THREE) {
+            isVR = false;
+        }
+
+        _videoJs.isVR = isVR;
+
+        var $main = $(elem),
+            $video = $.createElem("video", "vp-video"),             // video object
+            $ratio = $.createElem("div", "vp-ratio"),               // 视频宽高比例
+
+            $ui = $.createElem("div", "vp-ui"),                     // 视频UI
+            $uiPlay = $.createElem("div", "play"),                  // 播放提示
+            $uiPause = $.createElem("div", "pause"),                // 暂停提示
+            $uiWaiting = $.createElem("div", "waiting"),            // 等待提示
+            $uiMessage = $.createElem("div", "message"),            // 信息提示
+
+            $controls = $.createElem("div", "vp-controls"),         // 控制台
+
+            $timeline = $.createElem("div", "vp-timeline"),         // 视频时间线
+            $buffer = $.createElem("div", "vp-buffer"),             // 已缓冲的区域
+            $elapsed = $.createElem("div", "vp-elapsed"),           // 已播放的区域
+            $seek = $.createElem("div", "vp-seek"),                 // 进度按钮
+            $seekTime = $.createElem("div", "vp-seek-time"),        // 时间轴鼠标移动提示时间
+
+            $handle = $.createElem("div", "vp-handle"),             // 操作功能
+            $play = $.createElem("button", "vp-play"),              // 播放（暂停）按钮
+            $time = $.createElem("div", "vp-time"),                 // 显示时间
+            $currentTime = $.createElem("span", "vp-current"),      // 当前播放时间
+            $duration = $.createElem("span", "vp-duration"),        // 视频总时间
+            $fullscreen = $.createElem("button", "vr-fullscreen");  // 全屏按钮
+
+        var $stereoEffect = $.createElem("button", "vp-stereo"),      // 进入VR视角按钮
+            $exitVR = $.createElem("div", "vp-exit-vr"),              // 退出VR视角按钮
+            $orientation = $.createElem("button", "vp-orientation");  // 陀螺仪视角控制按钮
+
+        $video.attr({
+            "preload": "none",
+            "webkit-playsinline": "",
+            "x-webkit-airplay": "allow",
+            "src": config.src
+        });
+
+        $ratio.css("padding-top", config.ratio * 100 + "%");
+        $main.addClass("video-player").append($ratio);
+
+        // 视频封面设置
+        if (typeof config.poster === "string" && (config.poster = $.trim(config.poster))) {
+            $main.css("background-image", "url(" + config.poster + ")");
+        }
+
+        $uiWaiting.html("<i class=\"icon-loading vp-animated vp-rotate infinite linear\"></i>");
+        $ui.append($uiPlay).append($uiPause).append($uiWaiting).append($uiMessage);
+        $main.append($ui);
+
+        $elapsed.append($seek);
+        $timeline.append($buffer).append($elapsed).append($seekTime);
+
+        $time.append($currentTime).append("/").append($duration);
+        $controls.append($timeline).append($handle);
+        $handle.append($play).append($time);
+        $main.append($controls);
+
+        /*main.on("contextmenu", function(event) {
+         event.preventDefault();
+         });*/
+
+        var video = $video[0];
+
+        if ("function" !== typeof video.canPlayType) {
+            $main.addClass("is-error");
+            $uiMessage.html("您的浏览器不支持html5 video！");
+
+            return this;
+        }
+
+        _videoJs.video = video;
+        _videoJs.main = elem;
+
+        $currentTime.text("00:00");
+        $duration.text("00:00");
+
+        if (isVR) {
+            $video.attr("crossorigin", "anonymous");
+
+            $handle.append($orientation).append($fullscreen).append($stereoEffect);
+
+            $main.append($exitVR);
+            $exitVR.text("退出VR视角");
+
+            this.fov = DEFAULT_FOV;  // 视野（角度）
+            this.isVRView = 0;       // 是否VR视角
+            this.isOrientation = 0;  // 陀螺仪控制
+        } else {
+            $main.append($video);
+            $handle.append($fullscreen);
+        }
+
+        $video.attr("src", config.src);
 
 
-        if (elem && elem.nodeType === 1 && obj && obj.src) {
+        // 是否开始播放
+        var isStartPlaying = 0;
 
-            // 默认配置设置
-            (function () {
-                var x;
-                for (x in obj) {
-                    if (obj.hasOwnProperty(x)) {
-                        config[x] = obj[x];
+        var loadingRotateMethod;
+
+        if (!supportAnimationEvent) {
+            loadingRotateMethod = rotateElem($uiWaiting[0].childNodes[0]);
+        }
+
+        // 隐藏控制台定时器
+        var mouseoutTimeout = (function () {
+            var timeoutID;
+
+            function clear() {
+                clearTimeout(timeoutID);
+                $main.removeClass("is-mouseout");
+            }
+
+            function set() {
+                clearTimeout(timeoutID);
+                timeoutID = setTimeout(function () {
+                    if (!video.paused) {
+                        $main.addClass("is-mouseout");
                     }
-                }
-            }());
-
-            var isVR = config.vr;
-
-            if (!supportVR || "object" !== typeof THREE) {
-                isVR = false;
+                }, controlDisplayTime);
             }
 
-            _videoJs.isVR = isVR;
+            return {
+                clear: clear,
+                set: set
+            }
+        }());
 
-            var $main = $(elem),
-                $video = $.createElem("video", "vp-video"),             // video object
-                $ratio = $.createElem("div", "vp-ratio"),               // 视频宽高比例
 
-                $ui = $.createElem("div", "vp-ui"),                     // 视频UI
-                $uiPlay = $.createElem("div", "play"),                  // 播放提示
-                $uiPause = $.createElem("div", "pause"),                // 暂停提示
-                $uiWaiting = $.createElem("div", "waiting"),            // 等待提示
-                $uiMessage = $.createElem("div", "message"),            // 信息提示
+        // 隐藏提示快进时间的定时器
+        var seekTimeTimeout = (function () {
+            var timeoutID;
 
-                $controls = $.createElem("div", "vp-controls"),         // 控制台
-
-                $timeline = $.createElem("div", "vp-timeline"),         // 视频时间线
-                $buffer = $.createElem("div", "vp-buffer"),             // 已缓冲的区域
-                $elapsed = $.createElem("div", "vp-elapsed"),           // 已播放的区域
-                $seek = $.createElem("div", "vp-seek"),                 // 进度按钮
-                $seekTime = $.createElem("div", "vp-seek-time"),        // 时间轴鼠标移动提示时间
-
-                $handle = $.createElem("div", "vp-handle"),             // 操作功能
-                $play = $.createElem("button", "vp-play"),              // 播放（暂停）按钮
-                $time = $.createElem("div", "vp-time"),                 // 显示时间
-                $currentTime = $.createElem("span", "vp-current"),      // 当前播放时间
-                $duration = $.createElem("span", "vp-duration"),        // 视频总时间
-                $fullscreen = $.createElem("button", "vr-fullscreen");  // 全屏按钮
-
-            var $stereoEffect = $.createElem("button", "vp-stereo"),      // 进入VR视角按钮
-                $exitVR = $.createElem("div", "vp-exit-vr"),              // 退出VR视角按钮
-                $orientation = $.createElem("button", "vp-orientation");  // 陀螺仪视角控制按钮
-
-            $video.attr({
-                "preload": "none",
-                "webkit-playsinline": "",
-                "x-webkit-airplay": "allow",
-                "crossorigin": "anonymous",
-                "src": config.src
-            });
-
-            $ratio.css("padding-top", config.ratio * 100 + "%");
-            $main.addClass("video-player").append($ratio);
-
-            // 视频封面设置
-            if (typeof config.poster === "string" && (config.poster = $.trim(config.poster))) {
-                $main.css("background-image", "url(" + config.poster + ")");
+            function clear() {
+                clearTimeout(timeoutID);
+                $seekTime.show();
             }
 
-            $uiWaiting.html("<i class=\"icon-loading vp-animated vp-rotate infinite linear\"></i>");
-            $ui.append($uiPlay).append($uiPause).append($uiWaiting).append($uiMessage);
-            $main.append($ui);
-
-            $elapsed.append($seek);
-            $timeline.append($buffer).append($elapsed).append($seekTime);
-
-            $time.append($currentTime).append("/").append($duration);
-            $controls.append($timeline).append($handle);
-            $handle.append($play).append($time);
-            $main.append($controls);
-
-            /*main.on("contextmenu", function(event) {
-             event.preventDefault();
-             });*/
-
-            var video = $video[0];
-
-            if ("function" !== typeof video.canPlayType) {
-                $main.addClass("is-error");
-                $uiMessage.html("您的浏览器不支持html5 video！");
-
-                return this;
+            function set() {
+                clearTimeout(timeoutID);
+                timeoutID = setTimeout(function () {
+                    $seekTime.hide();
+                }, seekTimeDisplayTime);
             }
 
-            _videoJs.video = video;
-            _videoJs.main = elem;
-
-            $currentTime.text("00:00");
-            $duration.text("00:00");
-
-            if (isVR) {
-                $handle.append($orientation).append($fullscreen).append($stereoEffect);
-
-                $main.append($exitVR);
-                $exitVR.text("退出VR视角");
-
-                this.fov = DEFAULT_FOV;  // 视野（角度）
-                this.isVRView = 0;       // 是否VR视角
-                this.isOrientation = 0;  // 陀螺仪控制
-            } else {
-                $main.append($video);
-                $handle.append($fullscreen);
+            return {
+                clear: clear,
+                set: set
             }
+        }());
 
+        // 视频第一次点击播放判断是否真正播放
+        function startClickHandler() {
+            video.play();
+            $main.off("click", startClickHandler);
+        }
 
-            // 是否开始播放
-            var isStartPlaying = 0;
+        // 在下载被中断三秒以上时引发，这可以指示网络问题
+        var stalledTimeoutID;
 
-            var loadingRotateMethod;
+        function stalledHandler() {
+            $main.addClass("is-stalled");
+            $uiMessage.text(VIDEO_STATE_MESSAGE[0]);
 
-            if (!supportAnimationEvent) {
-                loadingRotateMethod = rotateElem($uiWaiting[0].childNodes[0]);
-            }
+            clearTimeout(stalledTimeoutID);
 
-            // 隐藏控制台定时器
-            var mouseoutTimeout = (function () {
-                var timeoutID;
+            stalledTimeoutID = setTimeout(function () {
+                $uiMessage.text("");
+                $main.removeClass("is-stalled");
+            }, 5000);
 
-                function clear() {
-                    clearTimeout(timeoutID);
-                    $main.removeClass("is-mouseout");
+            $video.off("stalled", stalledHandler);
+        }
+
+        // 是否拖拽结束，这里用来判断是否需要处理 timeupdate 的进度条，
+        // 如果为1处理，如果为0不处理
+        var dragSeekingEnd = 1;
+
+        // 时间轴坐标信息
+        var clientRect = $timeline[0].getBoundingClientRect();
+
+        // 拖动快进
+        var startX, startWidth, moveValue;
+
+        // 进度按钮拖动处理函数
+        var dragHandler = (function () {
+            var count = 0;
+
+            return function (event) {
+                event.preventDefault();
+                count++;
+
+                if (0 === count % 2) {
+                    mouseoutTimeout.clear();
+
+                    var clientX = event.type === "touchmove" ? event.targetTouches[0].clientX : event.clientX;
+
+                    var x = clientX - startX;
+                    moveValue = x / clientRect.width * 100 + startWidth;
+
+                    if (moveValue < 0) {
+                        moveValue = 0;
+                    } else if (moveValue > 100) {
+                        moveValue = 100;
+                    }
+
+                    $elapsed.css("width", moveValue + "%");
+                    var time = formatSecond(video.duration * moveValue / 100);
+                    $currentTime.text(time);
+                    $seekTime.text(time);
+
+                    seekTimeTimeout.clear();
+                    var width = $seekTime[0].offsetWidth,
+                        left = clientRect.width * moveValue / 100 - width / 2;
+
+                    if (left < 0) {
+                        left = 0;
+                    } else if (left > clientRect.width - width) {
+                        left = clientRect.width - width;
+                    }
+
+                    $seekTime.css("left", left + "px");
                 }
+            };
+        }());
 
-                function set() {
-                    clearTimeout(timeoutID);
-                    timeoutID = setTimeout(function () {
-                        if (!video.paused) {
-                            $main.addClass("is-mouseout");
-                        }
-                    }, controlDisplayTime);
-                }
+        // 时间轴鼠标移动处理函数
+        var moveHandler = (function () {
+            var count = 0;
 
-                return {
-                    clear: clear,
-                    set: set
-                }
-            }());
-
-
-            // 隐藏提示快进时间的定时器
-            var seekTimeTimeout = (function () {
-                var timeoutID;
-
-                function clear() {
-                    clearTimeout(timeoutID);
-                    $seekTime.show();
-                }
-
-                function set() {
-                    clearTimeout(timeoutID);
-                    timeoutID = setTimeout(function () {
-                        $seekTime.hide();
-                    }, seekTimeDisplayTime);
-                }
-
-                return {
-                    clear: clear,
-                    set: set
-                }
-            }());
-
-            // 视频第一次点击播放判断是否真正播放
-            function startClickHandler() {
-                video.play();
-                $main.off("click", startClickHandler);
-            }
-
-            // 在下载被中断三秒以上时引发，这可以指示网络问题
-            var stalledTimeoutID;
-
-            function stalledHandler() {
-                $main.addClass("is-stalled");
-                $uiMessage.text(VIDEO_STATE_MESSAGE[0]);
-
-                clearTimeout(stalledTimeoutID);
-
-                stalledTimeoutID = setTimeout(function () {
-                    $uiMessage.text("");
-                    $main.removeClass("is-stalled");
-                }, 5000);
-
-                $video.off("stalled", stalledHandler);
-            }
-
-            // 是否拖拽结束，这里用来判断是否需要处理 timeupdate 的进度条，
-            // 如果为1处理，如果为0不处理
-            var dragSeekingEnd = 1;
-
-            // 时间轴坐标信息
-            var clientRect = $timeline[0].getBoundingClientRect();
-
-            // 拖动快进
-            var startX, startWidth, moveValue;
-
-            // 进度按钮拖动处理函数
-            var dragHandler = (function () {
-                var count = 0;
-
-                return function (event) {
-                    event.preventDefault();
+            return function (event) {
+                event.preventDefault();
+                if (dragSeekingEnd) {
                     count++;
 
                     if (0 === count % 2) {
-                        mouseoutTimeout.clear();
-
-                        var clientX = event.type === "touchmove" ? event.targetTouches[0].clientX : event.clientX;
-
-                        var x = clientX - startX;
-                        moveValue = x / clientRect.width * 100 + startWidth;
-
-                        if (moveValue < 0) {
-                            moveValue = 0;
-                        } else if (moveValue > 100) {
-                            moveValue = 100;
+                        var change = event.clientX - clientRect.left;
+                        if (change < 0) {
+                            change = 0;
+                        } else if (change > clientRect.width) {
+                            change = clientRect.width;
                         }
 
-                        $elapsed.css("width", moveValue + "%");
-                        var time = formatSecond(video.duration * moveValue / 100);
-                        $currentTime.text(time);
-                        $seekTime.text(time);
+                        var value = change / clientRect.width;
 
-                        seekTimeTimeout.clear();
+                        $seekTime.text(formatSecond(video.duration * value));
+                        $seekTime.show();
+
                         var width = $seekTime[0].offsetWidth,
-                            left = clientRect.width * moveValue / 100 - width / 2;
+                            left = event.clientX - clientRect.left - width / 2;
 
                         if (left < 0) {
                             left = 0;
@@ -814,765 +863,728 @@
 
                         $seekTime.css("left", left + "px");
                     }
-                };
-            }());
-
-            // 时间轴鼠标移动处理函数
-            var moveHandler = (function () {
-                var count = 0;
-
-                return function (event) {
-                    event.preventDefault();
-                    if (dragSeekingEnd) {
-                        count++;
-
-                        if (0 === count % 2) {
-                            var change = event.clientX - clientRect.left;
-                            if (change < 0) {
-                                change = 0;
-                            } else if (change > clientRect.width) {
-                                change = clientRect.width;
-                            }
-
-                            var value = change / clientRect.width;
-
-                            $seekTime.text(formatSecond(video.duration * value));
-                            $seekTime.show();
-
-                            var width = $seekTime[0].offsetWidth,
-                                left = event.clientX - clientRect.left - width / 2;
-
-                            if (left < 0) {
-                                left = 0;
-                            } else if (left > clientRect.width - width) {
-                                left = clientRect.width - width;
-                            }
-
-                            $seekTime.css("left", left + "px");
-                        }
-                    }
                 }
-            }());
+            }
+        }());
 
-            // play & pause 动画结束事件监听
-            var uiAnimationStatus = 0;
+        // play & pause 动画结束事件监听
+        var uiAnimationStatus = 0;
 
-            $video.on("error", function () {  // 错误监视，当网络错误时提示重新加载,点击调用 load
-                var _this = this,
-                    code = _this.error.code;
+        $video.on("error", function () {  // 错误监视，当网络错误时提示重新加载,点击调用 load
+            var _this = this,
+                code = _this.error.code;
 
-                $main.removeClass("is-loading is-playing is-paused is-stalled").addClass("is-error");
+            $main.removeClass("is-loading is-playing is-paused is-stalled").addClass("is-error");
 
-                // 提示重新加载
-                if (code === 1 || code === 2) {
-                    $main.addClass("is-load");
-                    $uiMessage.html(VIDEO_STATE_MESSAGE[1]);
+            // 提示重新加载
+            if (code === 1 || code === 2) {
+                $main.addClass("is-load");
+                $uiMessage.html(VIDEO_STATE_MESSAGE[1]);
 
-                    // 点击重新加载
-                    $ui.one("click", function () {
-                        _this.pause();
-                        _this.load();
-                        _this.play();
-                        $uiMessage.html("");
-                        $currentTime.text("00:00");
-                        $buffer.css("width", "0%");
-                        $elapsed.css("width", "0%");
-                        $main.removeClass("is-error is-load");
-                    });
-                } else {
-                    $uiMessage.html(VIDEO_ERRORS_MESSAGE[code]);
-                    // TODO 清除绑定事件
-                }
-
-            }).on("ended", function () {  // 播放结束
-                var _this = this;
-                _this.pause();
-
-                $main.addClass("is-ended");
-                $uiMessage.html(VIDEO_STATE_MESSAGE[2]);
+                // 点击重新加载
                 $ui.one("click", function () {
+                    _this.pause();
+                    _this.load();
                     _this.play();
-                });
-
-                $video.one("play", function () {
                     $uiMessage.html("");
                     $currentTime.text("00:00");
                     $buffer.css("width", "0%");
                     $elapsed.css("width", "0%");
-                    $main.removeClass("is-ended");
+                    $main.removeClass("is-error is-load");
                 });
-            }).on("durationchange", function () {  // 资源长度发生改变
-                var duration = this.duration;
+            } else {
+                $uiMessage.html(VIDEO_ERRORS_MESSAGE[code]);
+                // TODO 清除绑定事件
+            }
 
-                _videoJs.duration = duration;
-                $duration.text(formatSecond(duration));
-            }).on("loadedmetadata", function () {  // 获取资源长度
-                var duration = this.duration;
+        }).on("ended", function () {  // 播放结束
+            var _this = this;
+            _this.pause();
 
-                $duration.text(formatSecond(duration));
-                _videoJs.duration = duration;
-            }).on("loadeddata", function () {  // 在当前播放位置加载媒体数据时引发，视频可以开始播放
-                this.controls = false;
-                _videoJs.readyState = this.readyState;
-            }).one("play", function () {
-                $main.off("click", startClickHandler);
+            $main.addClass("is-ended");
+            $uiMessage.html(VIDEO_STATE_MESSAGE[2]);
+            $ui.one("click", function () {
+                _this.play();
+            });
 
-                if (!supportAnimationEvent) {
-                    $uiPlay.hide();
-                    $main.addClass("is-loading");
-                    loadingRotateMethod.start();
-                } else {
-                    $main.addClass("is-animation is-loading");
-                }
+            $video.one("play", function () {
+                $uiMessage.html("");
+                $currentTime.text("00:00");
+                $buffer.css("width", "0%");
+                $elapsed.css("width", "0%");
+                $main.removeClass("is-ended");
+            });
+        }).on("durationchange", function () {  // 资源长度发生改变
+            var duration = this.duration;
 
-                // 由于Android bug 需要判断是否有 timeupdate 事件触发才可确认是否真正播放
-                $video.one("timeupdate", function () {
-                    isStartPlaying = 1;
+            _videoJs.duration = duration;
+            $duration.text(formatSecond(duration));
+        }).on("loadedmetadata", function () {  // 获取资源长度
+            var duration = this.duration;
 
-                    $main.removeClass("is-loading").addClass("is-ready is-playing");
-                    if (!supportAnimationEvent) {
-                        loadingRotateMethod.stop();
-                    }
+            $duration.text(formatSecond(duration));
+            _videoJs.duration = duration;
+        }).on("loadeddata", function () {  // 在当前播放位置加载媒体数据时引发，视频可以开始播放
+            this.controls = false;
+            _videoJs.readyState = this.readyState;
+        }).one("play", function () {
+            $main.off("click", startClickHandler);
 
-                    mouseoutTimeout.set();
-                });
-            }).on("waiting", function () {  // 在播放由于视频的下一帧不可用（可能需要缓冲）而停止时引发
+            if (!supportAnimationEvent) {
+                $uiPlay.hide();
                 $main.addClass("is-loading");
-                if (!supportAnimationEvent) {
-                    loadingRotateMethod.start();
-                }
-            }).on("progress", function () {  // 正在请求数据
-                var timeRanges = this.buffered,
-                    length = timeRanges.length,
-                    current = video.currentTime,
-                    i = 0,
-                    start, end;
+                loadingRotateMethod.start();
+            } else {
+                $main.addClass("is-animation is-loading");
+            }
 
-                if (length > 0) {
-                    for (i; i < length; i++) {
-                        start = timeRanges.start(i);
-                        end = timeRanges.end(i);
-                        if (current >= start && current <= end) {
-                            $buffer.css("width", timeRanges.end(i) / _videoJs.duration * 100 + "%");
-                            break;
-                        }
-                    }
-                }
-            }).on("timeupdate", function () {  // 当目前的播放位置已更改时
+            // 由于Android bug 需要判断是否有 timeupdate 事件触发才可确认是否真正播放
+            $video.one("timeupdate", function () {
+                isStartPlaying = 1;
 
-                // 开始播放并且拖拽快进完成
-                if (isStartPlaying && dragSeekingEnd) {  // TODO chrome mobile 拖动后好几秒才会有时间的更改
-                    var time = this.currentTime;
-                    $currentTime.text(formatSecond(time));
-                    $elapsed.css("width", time / video.duration * 100 + "%");
-                }
-            }).on("playing", function () {
-                if (isStartPlaying) {
-                    $main.removeClass("is-loading");
-                    $main.addClass("is-playing");
-                    $video.on("stalled", stalledHandler);
-                    if (!supportAnimationEvent) {
-                        $uiPlay.hide();
-                        loadingRotateMethod.stop();
-                    }
-                }
-            }).on("seeking", function () {
-                $main.addClass("is-loading");
-                if (!supportAnimationEvent) {
-                    loadingRotateMethod.start();
-                }
-            }).on("seeked", function () {
-                $main.removeClass("is-loading");
+                $main.removeClass("is-loading").addClass("is-ready is-playing");
                 if (!supportAnimationEvent) {
                     loadingRotateMethod.stop();
                 }
 
-                // IE播放中 seeked 不会触发 playing 事件，在这里处理兼容
-                if (!this.paused) {
-                    $main.addClass("is-playing");
-                }
-            }).on("play", function () {
-                $main.removeClass("is-paused");
+                mouseoutTimeout.set();
+            });
+        }).on("waiting", function () {  // 在播放由于视频的下一帧不可用（可能需要缓冲）而停止时引发
+            $main.addClass("is-loading");
+            if (!supportAnimationEvent) {
+                loadingRotateMethod.start();
+            }
+        }).on("progress", function () {  // 正在请求数据
+            var timeRanges = this.buffered,
+                length = timeRanges.length,
+                current = video.currentTime,
+                i = 0,
+                start, end;
 
-                if (supportAnimationEvent) {
-                    uiAnimationStatus = 1;
-
-                    $uiPlay.show().addClass(animationClassName);
-                    $main.addClass("is-animation");
-                }
-            }).on("pause", function () {
-                if (isStartPlaying) {
-                    $main.addClass("is-paused").removeClass("is-playing");
-
-                    if (!this.ended) {
-                        if (supportAnimationEvent) {
-                            uiAnimationStatus = 2;
-
-                            $uiPause.show().addClass(animationClassName);
-                            $main.addClass("is-animation");
-                        } else {
-                            $uiPlay.show();
-                        }
+            if (length > 0) {
+                for (i; i < length; i++) {
+                    start = timeRanges.start(i);
+                    end = timeRanges.end(i);
+                    if (current >= start && current <= end) {
+                        $buffer.css("width", timeRanges.end(i) / _videoJs.duration * 100 + "%");
+                        break;
                     }
-                } else {
-                    $main.removeClass("is-loading is-animation");
-                    $uiPlay.show().removeClass(animationClassName);
+                }
+            }
+        }).on("timeupdate", function () {  // 当目前的播放位置已更改时
 
-                    $video.one("play", function () {
-                        if (!supportAnimationEvent) {
-                            $uiPlay.hide();
-                            $main.addClass("is-loading");
-                            loadingRotateMethod.start();
-                        } else {
-                            $main.addClass("is-animation is-loading");
-                        }
-                    });
+            // 开始播放并且拖拽快进完成
+            if (isStartPlaying && dragSeekingEnd) {  // TODO chrome mobile 拖动后好几秒才会有时间的更改
+                var time = this.currentTime;
+                $currentTime.text(formatSecond(time));
+                $elapsed.css("width", time / video.duration * 100 + "%");
+            }
+        }).on("playing", function () {
+            if (isStartPlaying) {
+                $main.removeClass("is-loading");
+                $main.addClass("is-playing");
+                $video.on("stalled", stalledHandler);
+                if (!supportAnimationEvent) {
+                    $uiPlay.hide();
+                    loadingRotateMethod.stop();
+                }
+            }
+        }).on("seeking", function () {
+            $main.addClass("is-loading");
+            if (!supportAnimationEvent) {
+                loadingRotateMethod.start();
+            }
+        }).on("seeked", function () {
+            $main.removeClass("is-loading");
+            if (!supportAnimationEvent) {
+                loadingRotateMethod.stop();
+            }
 
-                    $main.on("click", startClickHandler);
+            // IE播放中 seeked 不会触发 playing 事件，在这里处理兼容
+            if (!this.paused) {
+                $main.addClass("is-playing");
+            }
+        }).on("play", function () {
+            $main.removeClass("is-paused");
+
+            if (supportAnimationEvent) {
+                uiAnimationStatus = 1;
+
+                $uiPlay.show().addClass(animationClassName);
+                $main.addClass("is-animation");
+            }
+        }).on("pause", function () {
+            if (isStartPlaying) {
+                $main.addClass("is-paused").removeClass("is-playing");
+
+                if (!this.ended) {
+                    if (supportAnimationEvent) {
+                        uiAnimationStatus = 2;
+
+                        $uiPause.show().addClass(animationClassName);
+                        $main.addClass("is-animation");
+                    } else {
+                        $uiPlay.show();
+                    }
+                }
+            } else {
+                $main.removeClass("is-loading is-animation");
+                $uiPlay.show().removeClass(animationClassName);
+
+                $video.one("play", function () {
+                    if (!supportAnimationEvent) {
+                        $uiPlay.hide();
+                        $main.addClass("is-loading");
+                        loadingRotateMethod.start();
+                    } else {
+                        $main.addClass("is-animation is-loading");
+                    }
+                });
+
+                $main.on("click", startClickHandler);
+            }
+        });
+
+        $main.on("click", startClickHandler);
+
+        $play.on("click", function () {
+            if (!video.error) {
+                video.paused ? video.play() : video.pause();
+            }
+        });
+
+        $uiPlay.on(animationEnd, function () {
+            if (1 === uiAnimationStatus) {
+                $uiPlay.hide().removeClass(animationClassName);
+                $main.removeClass("is-animation");
+
+                // 用于视频刚开始点击播放就暂停时的逻辑
+                if (!isStartPlaying && video.paused) {
+                    $uiPlay.show();
+                }
+
+                uiAnimationStatus = 0;
+            }
+        });
+
+        $uiPause.on(animationEnd, function () {
+            if (2 === uiAnimationStatus) {
+                $uiPause.hide().removeClass(animationClassName);
+                $main.removeClass("is-animation");
+
+                uiAnimationStatus = 0;
+            }
+        });
+
+        // seek按钮鼠标按下添加拖拽事件，鼠标松开移除拖拽事件
+        $seek.on("mousedown", function (event) {  // TODO 鼠标右键点击 bug
+            dragSeekingEnd = 0;
+            startX = event.clientX;
+            moveValue = undefined;
+            var width = $elapsed[0].style.getPropertyValue("width");
+            startWidth = width ? parseFloat(width) : 0;
+            clientRect = $timeline[0].getBoundingClientRect();
+
+            $doc.on("mousemove", dragHandler).one("mouseup", function () {
+                dragSeekingEnd = 1;
+                if (moveValue !== undefined) {
+                    video.currentTime = video.duration * moveValue / 100;
+                }
+
+                mouseoutTimeout.set();
+                seekTimeTimeout.set();
+
+                $doc.off("mousemove", dragHandler);
+            });
+        }).on("touchstart", function (event) {  // seek添加touch拖动事件
+            dragSeekingEnd = 0;
+            startX = event.targetTouches[0].clientX;
+            var width = $elapsed[0].style.getPropertyValue("width");
+            startWidth = width ? parseFloat(width) : 0;
+            clientRect = $timeline[0].getBoundingClientRect();
+
+            $doc.on("touchmove", dragHandler).one("touchend", function () {
+                dragSeekingEnd = 1;
+                video.currentTime = video.duration * moveValue / 100;
+
+                mouseoutTimeout.set();
+                seekTimeTimeout.set();
+
+                $doc.off("touchmove", dragHandler);
+            });
+        });
+
+        // 时间抽点击快进
+        $timeline.on("click", function (event) {
+            var clientRect = this.getBoundingClientRect(),
+                value = (event.clientX - clientRect.left) / this.offsetWidth;
+
+            $elapsed.css("width", value * 100 + "%");
+            var curt = video.duration * value,
+                time = formatSecond(curt);
+
+            $currentTime.text(time);
+            $seekTime.text(time);
+            video.currentTime = curt;
+
+            seekTimeTimeout.clear();
+
+            var width = $seekTime[0].offsetWidth,
+                left = event.clientX - clientRect.left - width / 2;
+
+            if (left < 0) {
+                left = 0;
+            } else if (left > clientRect.width - width) {
+                left = clientRect.width - width;
+            }
+
+            $seekTime.css("left", left + "px");
+
+            seekTimeTimeout.set();
+        });
+
+        if (!supportTouch) {
+            $timeline.on("mouseover", function () {
+                clientRect = this.getBoundingClientRect();
+            }).on("mouseout", function () {
+                if (dragSeekingEnd) {
+                    $seekTime.hide();
                 }
             });
 
-            $main.on("click", startClickHandler);
+            $timeline.on("mousemove", moveHandler);
+        }
 
-            $play.on("click", function () {
-                if (!video.error) {
+        // 页面不可见,暂停播放
+        documentVisibility.on(function () {
+            if (doc[documentVisibility.hidden]) {
+                video.pause();
+                $main.removeClass("is-mouseout");
+            }
+        });
+
+        if (!supportTouch) {
+            $main.on("mousemove", function () {
+                mouseoutTimeout.clear();
+                mouseoutTimeout.set();
+            });
+        }
+
+        // 点击切换播放状态
+        if (supportTouch) {
+            $ui.on("click", function () {
+                if (!video.error && !vr_isMove) {
+                    if (video.paused) {
+                        $main.removeClass("is-mouseout");
+                        video.play();
+                    } else {
+                        if (!$main.hasClass("is-mouseout")) {
+                            video.pause();
+                        } else {
+                            $main.removeClass("is-mouseout");
+                        }
+                    }
+                    if (isStartPlaying) {
+                        mouseoutTimeout.set();
+                    }
+                }
+            });
+
+            $controls.on("touchstart", function () {
+                mouseoutTimeout.clear();
+                mouseoutTimeout.set();
+            });
+        } else {
+            $ui.on("click", function () {
+                if (!video.error && !vr_isMove) {
                     video.paused ? video.play() : video.pause();
                 }
             });
+        }
 
-            $uiPlay.on(animationEnd, function () {
-                if (1 === uiAnimationStatus) {
-                    $uiPlay.hide().removeClass(animationClassName);
-                    $main.removeClass("is-animation");
-
-                    // 用于视频刚开始点击播放就暂停时的逻辑
-                    if (!isStartPlaying && video.paused) {
-                        $uiPlay.show();
-                    }
-
-                    uiAnimationStatus = 0;
-                }
-            });
-
-            $uiPause.on(animationEnd, function () {
-                if (2 === uiAnimationStatus) {
-                    $uiPause.hide().removeClass(animationClassName);
-                    $main.removeClass("is-animation");
-
-                    uiAnimationStatus = 0;
-                }
-            });
-
-            // seek按钮鼠标按下添加拖拽事件，鼠标松开移除拖拽事件
-            $seek.on("mousedown", function (event) {  // TODO 鼠标右键点击 bug
-                dragSeekingEnd = 0;
-                startX = event.clientX;
-                moveValue = undefined;
-                var width = $elapsed[0].style.getPropertyValue("width");
-                startWidth = width ? parseFloat(width) : 0;
-                clientRect = $timeline[0].getBoundingClientRect();
-
-                $doc.on("mousemove", dragHandler).one("mouseup", function () {
-                    dragSeekingEnd = 1;
-                    if (moveValue !== undefined) {
-                        video.currentTime = video.duration * moveValue / 100;
-                    }
-
-                    mouseoutTimeout.set();
-                    seekTimeTimeout.set();
-
-                    $doc.off("mousemove", dragHandler);
-                });
-            }).on("touchstart", function (event) {  // seek添加touch拖动事件
-                dragSeekingEnd = 0;
-                startX = event.targetTouches[0].clientX;
-                var width = $elapsed[0].style.getPropertyValue("width");
-                startWidth = width ? parseFloat(width) : 0;
-                clientRect = $timeline[0].getBoundingClientRect();
-
-                $doc.on("touchmove", dragHandler).one("touchend", function () {
-                    dragSeekingEnd = 1;
-                    video.currentTime = video.duration * moveValue / 100;
-
-                    mouseoutTimeout.set();
-                    seekTimeTimeout.set();
-
-                    $doc.off("touchmove", dragHandler);
-                });
-            });
-
-            // 时间抽点击快进
-            $timeline.on("click", function (event) {
-                var clientRect = this.getBoundingClientRect(),
-                    value = (event.clientX - clientRect.left) / this.offsetWidth;
-
-                $elapsed.css("width", value * 100 + "%");
-                var curt = video.duration * value,
-                    time = formatSecond(curt);
-
-                $currentTime.text(time);
-                $seekTime.text(time);
-                video.currentTime = curt;
-
-                seekTimeTimeout.clear();
-
-                var width = $seekTime[0].offsetWidth,
-                    left = event.clientX - clientRect.left - width / 2;
-
-                if (left < 0) {
-                    left = 0;
-                } else if (left > clientRect.width - width) {
-                    left = clientRect.width - width;
-                }
-
-                $seekTime.css("left", left + "px");
-
-                seekTimeTimeout.set();
-            });
-
-            if (!supportTouch) {
-                $timeline.on("mouseover", function () {
-                    clientRect = this.getBoundingClientRect();
-                }).on("mouseout", function () {
-                    if (dragSeekingEnd) {
-                        $seekTime.hide();
-                    }
-                });
-
-                $timeline.on("mousemove", moveHandler);
-            }
-
-            // 页面不可见,暂停播放
-            documentVisibility.on(function () {
-                if (doc[documentVisibility.hidden]) {
-                    video.pause();
-                    $main.removeClass("is-mouseout");
-                }
-            });
-
-            if (!supportTouch) {
-                $main.on("mousemove", function () {
-                    mouseoutTimeout.clear();
-                    mouseoutTimeout.set();
-                });
-            }
-
-            // 点击切换播放状态
-            if (supportTouch) {
-                $ui.on("click", function () {
-                    if (!video.error && !vr_isMove) {
-                        if (video.paused) {
-                            $main.removeClass("is-mouseout");
-                            video.play();
-                        } else {
-                            if (!$main.hasClass("is-mouseout")) {
-                                video.pause();
-                            } else {
-                                $main.removeClass("is-mouseout");
-                            }
-                        }
-                        if (isStartPlaying) {
-                            mouseoutTimeout.set();
-                        }
-                    }
-                });
-
-                $controls.on("touchstart", function () {
-                    mouseoutTimeout.clear();
-                    mouseoutTimeout.set();
-                });
+        // 全屏按钮
+        $fullscreen.on("click", function () {
+            if ($main.hasClass("is-fullscreen")) {
+                fullscreen.exit();
+                $body.removeClass("vr-full");
+                $main.removeClass("is-fullscreen");
+                $fullscreen.removeClass(btnActiveClassName);
             } else {
-                $ui.on("click", function () {
-                    if (!video.error && !vr_isMove) {
-                        video.paused ? video.play() : video.pause();
-                    }
-                });
+                fullscreen.request();
+                $body.addClass("vr-full");
+                $main.addClass("is-fullscreen");
+                $fullscreen.addClass(btnActiveClassName);
             }
 
-            // 全屏按钮
-            $fullscreen.on("click", function () {
-                if ($main.hasClass("is-fullscreen")) {
-                    fullscreen.exit();
-                    $body.removeClass("vr-full");
-                    $main.removeClass("is-fullscreen");
-                    $fullscreen.removeClass(btnActiveClassName);
-                } else {
-                    fullscreen.request();
-                    $body.addClass("vr-full");
-                    $main.addClass("is-fullscreen");
-                    $fullscreen.addClass(btnActiveClassName);
-                }
+            if(isVR) {
+                vrResize();
+            }
+        });
 
-                if(isVR) {
-                    vrResize();
-                }
-            });
+        // 全屏事件改变触发
+        fullscreen.on(function () {  // TODO chrome 仿移动浏览器退出全屏未触发事件
+            if (doc[fullscreen.fullscreenElement] !== doc.documentElement) {
+                $body.removeClass("vr-full");
+                $main.removeClass("is-fullscreen");
+                $fullscreen.removeClass(btnActiveClassName);
+            }
 
-            // 全屏事件改变触发
-            fullscreen.on(function () {  // TODO chrome 仿移动浏览器退出全屏未触发事件
-                if (doc[fullscreen.fullscreenElement] !== doc.documentElement) {
-                    $body.removeClass("vr-full");
-                    $main.removeClass("is-fullscreen");
-                    $fullscreen.removeClass(btnActiveClassName);
-                }
-
-                if(isVR) {
-                    vrResize();
-                }
-            });
+            if(isVR) {
+                vrResize();
+            }
+        });
 
 
-            /**
-             * VR 控制功能函数
-             */
-            function vrMouseWheel(event) {
-                if (event.wheelDeltaY) {  // WebKit
-                    _videoJs.fov -= event.wheelDeltaY * 0.05;
-                } else if (event.wheelDelta) {  // Opera / Explorer 9
-                    _videoJs.fov -= event.wheelDelta * 0.05;
-                } else if (event.detail) {  // Firefox
-                    _videoJs.fov += event.detail * 1.0;
-                }
+        /**
+         * VR 控制功能函数
+         */
+        function vrMouseWheel(event) {
+            if (event.wheelDeltaY) {  // WebKit
+                _videoJs.fov -= event.wheelDeltaY * 0.05;
+            } else if (event.wheelDelta) {  // Opera / Explorer 9
+                _videoJs.fov -= event.wheelDelta * 0.05;
+            } else if (event.detail) {  // Firefox
+                _videoJs.fov += event.detail * 1.0;
+            }
+
+            _videoJs.fov = Math.min(MAX_FOV, Math.max(MIN_FOV, _videoJs.fov));
+
+            camera.fov = _videoJs.fov;
+            camera.updateProjectionMatrix();
+        }
+
+        function vrResize() {
+            camera.aspect = elem.clientWidth / elem.clientHeight;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(elem.clientWidth, elem.clientHeight);
+
+            renderer.render(scene, camera);
+
+            return _videoJs;
+        }
+
+        function vrTouchStart(event) {
+            vr_isMove = 0;
+
+            vr_clientWidth = elem.clientWidth;
+            vr_clientHeight = elem.clientHeight;
+
+            var touches = event.targetTouches,
+                touch = touches[0];
+
+            if (1 === touches.length && undefined === moveTouchIdentifier) {
+                vr_isDrag = 1;
+
+                moveTouchIdentifier = touch.identifier;
+
+                vr_endX = vr_lon;
+                vr_endY = vr_lat;
+
+                vr_startX = touch.clientX;
+                vr_startY = touch.clientY;
+            }
+
+            if (2 === touches.length) {
+                vr_isDrag = 0;
+
+                var _touch1 = touches[0],
+                    _touch2 = touches[1];
+
+                var _x = Math.abs(_touch1.clientX - _touch2.clientX),
+                    _y = Math.abs(_touch1.clientY - _touch2.clientY);
+
+                scaleStartDistance = Math.sqrt(Math.pow(_x, 2) + Math.pow(_y, 2));
+
+                scaleStartFov = camera.fov;
+            }
+        }
+
+        function vrTouchMove(event) {
+            event.preventDefault();
+
+            vr_isMove = 1;
+
+            var touches = event.targetTouches,
+                changedTouches = event.changedTouches,
+                changedTouch = changedTouches[0];
+
+            if (moveTouchIdentifier === changedTouch.identifier && vr_isDrag) {
+                vr_moveX = vr_startX - changedTouch.clientX;
+                vr_moveY = changedTouch.clientY - vr_startY;
+
+                vr_lon = vr_moveX / vr_clientHeight * 1.5 * _videoJs.fov / DEFAULT_FOV + vr_endX;
+
+                vr_lat = vr_moveY / vr_clientHeight * 1.5 * _videoJs.fov / DEFAULT_FOV + vr_endY;
+            }
+
+            // 滑动缩放功能
+            if (touches.length > 1) {
+                var _touch1 = touches[0],
+                    _touch2 = touches[1];
+
+                var _x = Math.abs(_touch1.clientX - _touch2.clientX),
+                    _y = Math.abs(_touch1.clientY - _touch2.clientY);
+
+                var moveDistance = Math.sqrt(Math.pow(_x, 2) + Math.pow(_y, 2)) - scaleStartDistance;
+
+                _videoJs.fov = scaleStartFov - moveDistance * 0.2;
 
                 _videoJs.fov = Math.min(MAX_FOV, Math.max(MIN_FOV, _videoJs.fov));
 
                 camera.fov = _videoJs.fov;
                 camera.updateProjectionMatrix();
             }
+        }
 
-            function vrResize() {
-                camera.aspect = elem.clientWidth / elem.clientHeight;
-                camera.updateProjectionMatrix();
+        function vrTouchEnd(event) {
+            var touches = event.targetTouches,
+                touch = touches[0],
+                changedTouches = event.changedTouches,
+                changedTouch = changedTouches[0];
 
-                renderer.setSize(elem.clientWidth, elem.clientHeight);
-
-                renderer.render(scene, camera);
-
-                return _videoJs;
+            if (moveTouchIdentifier === changedTouch.identifier) {
+                vr_isDrag = 0;
+                moveTouchIdentifier = undefined;
             }
 
-            function vrTouchStart(event) {
-                vr_isMove = 0;
-
-                vr_clientWidth = elem.clientWidth;
-                vr_clientHeight = elem.clientHeight;
-
-                var touches = event.targetTouches,
-                    touch = touches[0];
-
-                if (1 === touches.length && undefined === moveTouchIdentifier) {
-                    vr_isDrag = 1;
-
-                    moveTouchIdentifier = touch.identifier;
-
-                    vr_endX = vr_lon;
-                    vr_endY = vr_lat;
-
-                    vr_startX = touch.clientX;
-                    vr_startY = touch.clientY;
-                }
-
-                if (2 === touches.length) {
-                    vr_isDrag = 0;
-
-                    var _touch1 = touches[0],
-                        _touch2 = touches[1];
-
-                    var _x = Math.abs(_touch1.clientX - _touch2.clientX),
-                        _y = Math.abs(_touch1.clientY - _touch2.clientY);
-
-                    scaleStartDistance = Math.sqrt(Math.pow(_x, 2) + Math.pow(_y, 2));
-
-                    scaleStartFov = camera.fov;
-                }
-            }
-
-            function vrTouchMove(event) {
-                event.preventDefault();
-
-                vr_isMove = 1;
-
-                var touches = event.targetTouches,
-                    changedTouches = event.changedTouches,
-                    changedTouch = changedTouches[0];
-
-                if (moveTouchIdentifier === changedTouch.identifier && vr_isDrag) {
-                    vr_moveX = vr_startX - changedTouch.clientX;
-                    vr_moveY = changedTouch.clientY - vr_startY;
-
-                    vr_lon = vr_moveX / vr_clientHeight * 1.5 * _videoJs.fov / DEFAULT_FOV + vr_endX;
-
-                    vr_lat = vr_moveY / vr_clientHeight * 1.5 * _videoJs.fov / DEFAULT_FOV + vr_endY;
-                }
-
-                // 滑动缩放功能
-                if (touches.length > 1) {
-                    var _touch1 = touches[0],
-                        _touch2 = touches[1];
-
-                    var _x = Math.abs(_touch1.clientX - _touch2.clientX),
-                        _y = Math.abs(_touch1.clientY - _touch2.clientY);
-
-                    var moveDistance = Math.sqrt(Math.pow(_x, 2) + Math.pow(_y, 2)) - scaleStartDistance;
-
-                    _videoJs.fov = scaleStartFov - moveDistance * 0.2;
-
-                    _videoJs.fov = Math.min(MAX_FOV, Math.max(MIN_FOV, _videoJs.fov));
-
-                    camera.fov = _videoJs.fov;
-                    camera.updateProjectionMatrix();
-                }
-            }
-
-            function vrTouchEnd(event) {
-                var touches = event.targetTouches,
-                    touch = touches[0],
-                    changedTouches = event.changedTouches,
-                    changedTouch = changedTouches[0];
-
-                if (moveTouchIdentifier === changedTouch.identifier) {
-                    vr_isDrag = 0;
-                    moveTouchIdentifier = undefined;
-                }
-
-                if (1 === touches.length) {
-                    vr_isDrag = 1;
-                    moveTouchIdentifier = touch.identifier;
-
-                    vr_endX = vr_lon;
-                    vr_endY = vr_lat;
-
-                    vr_startX = touch.clientX;
-                    vr_startY = touch.clientY;
-                }
-            }
-
-            function vrMouseDown(event) {
-                //event.preventDefault();
-
+            if (1 === touches.length) {
                 vr_isDrag = 1;
-                vr_isMove = 0;
+                moveTouchIdentifier = touch.identifier;
 
                 vr_endX = vr_lon;
                 vr_endY = vr_lat;
 
-                vr_startX = event.clientX;
-                vr_startY = event.clientY;
-
-                vr_clientWidth = elem.clientWidth;
-                vr_clientHeight = elem.clientHeight;
+                vr_startX = touch.clientX;
+                vr_startY = touch.clientY;
             }
+        }
 
-            function vrMouseMove(event) {
-                event.preventDefault();
+        function vrMouseDown(event) {
+            //event.preventDefault();
 
-                vr_isMove = 1;
+            vr_isDrag = 1;
+            vr_isMove = 0;
 
-                if (vr_isDrag) {
-                    vr_moveX = vr_startX - event.clientX;
-                    vr_moveY = event.clientY - vr_startY;
+            vr_endX = vr_lon;
+            vr_endY = vr_lat;
 
-                    vr_lon = vr_moveX / vr_clientHeight * 1.5 * _videoJs.fov / DEFAULT_FOV + vr_endX;
+            vr_startX = event.clientX;
+            vr_startY = event.clientY;
 
-                    vr_lat = vr_moveY / vr_clientHeight * 1.5 * _videoJs.fov / DEFAULT_FOV + vr_endY;
-                }
+            vr_clientWidth = elem.clientWidth;
+            vr_clientHeight = elem.clientHeight;
+        }
+
+        function vrMouseMove(event) {
+            event.preventDefault();
+
+            vr_isMove = 1;
+
+            if (vr_isDrag) {
+                vr_moveX = vr_startX - event.clientX;
+                vr_moveY = event.clientY - vr_startY;
+
+                vr_lon = vr_moveX / vr_clientHeight * 1.5 * _videoJs.fov / DEFAULT_FOV + vr_endX;
+
+                vr_lat = vr_moveY / vr_clientHeight * 1.5 * _videoJs.fov / DEFAULT_FOV + vr_endY;
             }
+        }
 
-            function vrMouseUp(event) {
-                //event.preventDefault();
+        function vrMouseUp(event) {
+            //event.preventDefault();
 
-                vr_isDrag = 0;
-                //vr_isMove = 0;
-            }
+            vr_isDrag = 0;
+            //vr_isMove = 0;
+        }
 
-            function hideExitVR() {
-                clearTimeout(hideExitVRTimeoutID);
-                hideExitVRTransitionState = 0;
+        function hideExitVR() {
+            clearTimeout(hideExitVRTimeoutID);
+            hideExitVRTransitionState = 0;
 
-                $exitVR.show();
-                setTimeout(function () {
-                    $exitVR.css(transition, "all .4s").css("opacity", 1);
-                }, 10);
+            $exitVR.show();
+            setTimeout(function () {
+                $exitVR.css(transition, "all .4s").css("opacity", 1);
+            }, 10);
 
-                hideExitVRTimeoutID = setTimeout(function () {
-                    $exitVR.css(transition, "all .6s").css("opacity", 0);
+            hideExitVRTimeoutID = setTimeout(function () {
+                $exitVR.css(transition, "all .6s").css("opacity", 0);
 
-                    hideExitVRTransitionState = 1;
-                }, 4000);
-            }
+                hideExitVRTransitionState = 1;
+            }, 4000);
+        }
 
-            $exitVR.on(transitionEnd, function () {
-                if (1 === hideExitVRTransitionState) {
-                    $exitVR.hide();
-                    hideExitVRTransitionState = 0;
-                }
-            }, false);
-
-            function requestStereo() {
-                _videoJs.isVRView = 1;
-
-                renderer = stereoEffect;
-
-                fullscreen.request();
-
-                if (supportOrientation) {
-                    orientationControls.connect();
-                    _videoJs.isOrientation = 1;
-                }
-
-                $body.addClass("vr-full");
-                $main.addClass("is-vr");
-
-                $exitVR.show();
-
-                clearTimeout(hideExitVRTimeoutID);
-                hideExitVRTimeoutID = setTimeout(function () {
-                    $exitVR.css(transition, "all .6s").css("opacity", 0);
-
-                    hideExitVRTransitionState = 1;
-                }, 3000);
-
-                $main.on("click", hideExitVR);
-
-                vrResize();
-
-                return _videoJs;
-            }
-
-            function exitStereo() {
-                _videoJs.isVRView = 0;
-
-                renderer = normalEffect;
-
-                orientationControls.disconnect();
-                _videoJs.isOrientation = 0;
-                $orientation.removeClass(btnActiveClassName);
-
-                fullscreen.exit();
-
-                $body.removeClass("vr-full");
-                $main.removeClass("is-vr");
-
-                clearTimeout(hideExitVRTimeoutID);
+        $exitVR.on(transitionEnd, function () {
+            if (1 === hideExitVRTransitionState) {
                 $exitVR.hide();
+                hideExitVRTransitionState = 0;
+            }
+        }, false);
 
-                $main.off("click", hideExitVR);
+        function requestStereo() {
+            _videoJs.isVRView = 1;
 
-                $fullscreen.removeClass(btnActiveClassName);
+            renderer = stereoEffect;
 
-                vrResize();
+            fullscreen.request();
 
-                return _videoJs;
+            if (supportOrientation) {
+                orientationControls.connect();
+                _videoJs.isOrientation = 1;
             }
 
-            function changeOrientation() {
-                if (supportOrientation) {
-                    if (_videoJs.isOrientation) {
-                        orientationControls.disconnect();
-                        $orientation.removeClass(btnActiveClassName);
-                    } else {
-                        orientationControls.connect();
-                        $orientation.addClass(btnActiveClassName);
-                    }
+            $body.addClass("vr-full");
+            $main.addClass("is-vr");
 
-                    _videoJs.isOrientation = !_videoJs.isOrientation;
+            $exitVR.show();
+
+            clearTimeout(hideExitVRTimeoutID);
+            hideExitVRTimeoutID = setTimeout(function () {
+                $exitVR.css(transition, "all .6s").css("opacity", 0);
+
+                hideExitVRTransitionState = 1;
+            }, 3000);
+
+            $main.on("click", hideExitVR);
+
+            vrResize();
+
+            return _videoJs;
+        }
+
+        function exitStereo() {
+            _videoJs.isVRView = 0;
+
+            renderer = normalEffect;
+
+            orientationControls.disconnect();
+            _videoJs.isOrientation = 0;
+            $orientation.removeClass(btnActiveClassName);
+
+            fullscreen.exit();
+
+            $body.removeClass("vr-full");
+            $main.removeClass("is-vr");
+
+            clearTimeout(hideExitVRTimeoutID);
+            $exitVR.hide();
+
+            $main.off("click", hideExitVR);
+
+            $fullscreen.removeClass(btnActiveClassName);
+
+            vrResize();
+
+            return _videoJs;
+        }
+
+        function changeOrientation() {
+            if (supportOrientation) {
+                if (_videoJs.isOrientation) {
+                    orientationControls.disconnect();
+                    $orientation.removeClass(btnActiveClassName);
                 } else {
-                    _videoJs.toast(VR_STATE_MESSAGES[1]);
+                    orientationControls.connect();
+                    $orientation.addClass(btnActiveClassName);
                 }
 
-                return _videoJs;
+                _videoJs.isOrientation = !_videoJs.isOrientation;
+            } else {
+                _videoJs.toast(VR_STATE_MESSAGES[1]);
             }
 
-            if(isVR) {
-                renderer = normalEffect = new THREE.WebGLRenderer();
+            return _videoJs;
+        }
 
-                stereoEffect = new THREE.StereoEffect(renderer);
+        if(isVR) {
+            renderer = normalEffect = new THREE.WebGLRenderer();
 
-                camera = new THREE.PerspectiveCamera(_videoJs.fov, elem.clientWidth / elem.clientHeight, 1, 1000);
+            stereoEffect = new THREE.StereoEffect(renderer);
 
-                orientationControls = new THREE.DeviceOrientationControls(camera);
+            camera = new THREE.PerspectiveCamera(_videoJs.fov, elem.clientWidth / elem.clientHeight, 1, 1000);
 
-                scene = new THREE.Scene();
+            orientationControls = new THREE.DeviceOrientationControls(camera);
 
-                texture = new THREE.Texture(video);
-                texture.generateMipmaps = false;
-                texture.minFilter = THREE.LinearFilter;
-                texture.format = THREE.RGBAFormat;
+            scene = new THREE.Scene();
 
-                material = new THREE.MeshBasicMaterial({
-                    map: texture
-                });
+            texture = new THREE.Texture(video);
+            texture.generateMipmaps = false;
+            texture.minFilter = THREE.LinearFilter;
+            texture.format = THREE.RGBAFormat;
 
-                sphere = new THREE.SphereBufferGeometry(RADIUS, 60, 60);
-                sphere.scale(-1, 1, 1);
+            material = new THREE.MeshBasicMaterial({
+                map: texture
+            });
 
-                mesh = new THREE.Mesh(sphere, material);
+            sphere = new THREE.SphereBufferGeometry(RADIUS, 60, 60);
+            sphere.scale(-1, 1, 1);
 
-                scene.add(mesh);
+            mesh = new THREE.Mesh(sphere, material);
 
-                // 条纹展示
-                /*var edges = new THREE.EdgesHelper(mesh, 0x666666);
-                scene.add(edges);*/
+            scene.add(mesh);
+
+            // 条纹展示
+            /*var edges = new THREE.EdgesHelper(mesh, 0x666666);
+             scene.add(edges);*/
+
+            // TODO 性能监测
+            /*stats = new Stats();
+             $body.append(stats.dom);*/
+
+            renderer.setSize(elem.clientWidth, elem.clientHeight);
+            renderer.setClearColor(0x666666);
+            domElement = renderer.domElement;
+            $(domElement).addClass("vp-video");
+            $main.append(domElement);
+
+            renderer.render(scene, camera);
+
+            $root.on("resize", vrResize);
+
+            $ui.on("mousedown", vrMouseDown).on("touchstart", vrTouchStart).on("mousemove", vrMouseMove).on("touchmove", vrTouchMove);
+
+            $ui.on("mouseup mouseout touchcancel", vrMouseUp).on("touchend", vrTouchEnd);
+
+            $stereoEffect.on("click", requestStereo);
+            $orientation.on("click", changeOrientation);
+            $exitVR.on("click", exitStereo);
+            $main.on("mousewheel MozMousePixelScroll", vrMouseWheel);
+
+            var vrUpload = function () {
+                vr_lat = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, vr_lat));
+
+                var x = RADIUS * Math.cos(vr_lon) * Math.cos(vr_lat);
+
+                var y = RADIUS * Math.sin(vr_lat);
+
+                var z = RADIUS * Math.sin(vr_lon) * Math.cos(vr_lat);
+
+                var target = new THREE.Vector3(x, y, z);
+
+                if (video.readyState >= video.HAVE_CURRENT_DATA) {
+                    texture.needsUpdate = true;
+                }
+
+                if (_videoJs.isOrientation) {
+                    orientationControls.update();
+                } else {
+                    camera.lookAt(target);
+                }
 
                 // TODO 性能监测
-                /*stats = new Stats();
-                $body.append(stats.dom);*/
-
-                renderer.setSize(elem.clientWidth, elem.clientHeight);
-                renderer.setClearColor(0x666666);
-                domElement = renderer.domElement;
-                $(domElement).addClass("vp-video");
-                $main.append(domElement);
+                //stats.update();
 
                 renderer.render(scene, camera);
 
-                $root.on("resize", vrResize);
+                vrRequestID = requestAnimationFrame(vrUpload);
+            };
 
-                $ui.on("mousedown", vrMouseDown).on("touchstart", vrTouchStart).on("mousemove", vrMouseMove).on("touchmove", vrTouchMove);
+            vrUpload();
 
-                $ui.on("mouseup mouseout touchcancel", vrMouseUp).on("touchend", vrTouchEnd);
-
-                $stereoEffect.on("click", requestStereo);
-                $orientation.on("click", changeOrientation);
-                $exitVR.on("click", exitStereo);
-                $main.on("mousewheel MozMousePixelScroll", vrMouseWheel);
-
-                var vrUpload = function () {
-                    vr_lat = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, vr_lat));
-
-                    var x = RADIUS * Math.cos(vr_lon) * Math.cos(vr_lat);
-
-                    var y = RADIUS * Math.sin(vr_lat);
-
-                    var z = RADIUS * Math.sin(vr_lon) * Math.cos(vr_lat);
-
-                    var target = new THREE.Vector3(x, y, z);
-
-                    if (video.readyState >= video.HAVE_CURRENT_DATA) {
-                        texture.needsUpdate = true;
-                    }
-
-                    if (_videoJs.isOrientation) {
-                        orientationControls.update();
-                    } else {
-                        camera.lookAt(target);
-                    }
-
-                    // TODO 性能监测
-                    //stats.update();
-
-                    renderer.render(scene, camera);
-
-                    vrRequestID = requestAnimationFrame(vrUpload);
-                };
-
-                vrUpload();
-
-                _videoJs.resize = vrResize;
-                _videoJs.requestStereo = requestStereo;
-                _videoJs.exitStereo = exitStereo;
-                _videoJs.changeOrientation = changeOrientation;
-            }
+            _videoJs.resize = vrResize;
+            _videoJs.requestStereo = requestStereo;
+            _videoJs.exitStereo = exitStereo;
+            _videoJs.changeOrientation = changeOrientation;
         }
     };
 
