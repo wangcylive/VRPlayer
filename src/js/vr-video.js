@@ -181,7 +181,7 @@
     $root.one("deviceorientation", function (event) {
         supportOrientation = null !== event.alpha;
         videoJs.fn.supportOrientation = supportOrientation;
-        imageVR.fn.testedOrientation = true;
+        videoJs.fn.testedOrientation = true;
 
         if("function" === typeof videoJs.deviceorientation) {
             videoJs.deviceorientation(supportOrientation);
