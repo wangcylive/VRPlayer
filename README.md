@@ -78,7 +78,7 @@ var imageObj = imageVR(element, config);
 ```javascript
 config = {
 	src: "",     // image resource
-	ratio: 2/3,  // image height width ratio, default value 272/480
+	ratio: 2/3   // if is a number set element padding-top
 }
 ```
 
