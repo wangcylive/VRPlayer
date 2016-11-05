@@ -1,9 +1,11 @@
 /**
- * Created by Wangcy on 2015/3/11.
+ * Created by Wangcy on 2016/7/11.
  * Bugs
  * Android QQ|UC|百度 等一系列浏览器 video 被系统播放器挟持,不能使用 video 作为材质渲染,
  * 欧朋,猎豹等浏览器 video 用作材质没有画面,只有声音,
  * Android 平台目前只有 chrome, firefox, 360 可以正常观看 VR 视频, 视频分辨率不能大于2K, 否则无法解码
+ * IOS 平台 video 必须同域
+ * iphone video 元素需要添加 webkit-playsinline playsinline
  */
 ;(function (jQuery) {
     var $ = jQuery(),
@@ -539,7 +541,7 @@
         }
 
         var config = {
-            ratio: 272 / 480,
+            /*ratio: 272 / 480,*/
             vr: true
         };
 
@@ -637,11 +639,15 @@
         $video.attr({
             "preload": "none",
             "webkit-playsinline": "",
+            "playsinline": "",
             "x-webkit-airplay": "allow",
             "src": config.src
         });
 
-        $ratio.css("padding-top", config.ratio * 100 + "%");
+        if(config.ratio) {
+            $ratio.css("padding-top", config.ratio * 100 + "%");
+        }
+
         $main.addClass("video-player").append($ratio);
 
         // 视频封面设置

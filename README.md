@@ -12,7 +12,7 @@ var videoObj = videoJs(element, config);
 config = {
 	src: "",     // media resource
 	poster: "",  // media poster
-	ratio: 2/3,  // media height width ratio, default value 272/480
+	ratio: 2/3,  // media height width ratio
 	vr: boolean  // default true, if false play the original video
 }
 ```
