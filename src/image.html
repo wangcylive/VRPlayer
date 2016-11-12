@@ -89,8 +89,7 @@
         var imageVR = require("vr-image");
 
         var fn = imageVR(document.getElementById("container"), {
-            src: "img/01.jpg",
-            ratio: 0.6
+            src: "img/01.jpg"
         });
 
         imageVR.deviceorientation = function(event) {
@@ -105,8 +104,6 @@
         fn.on("load", function () {
             document.getElementById("pageLoading").style.display = "none";
         });
-
-        console.log(fn.supportVR);
 
         setTimeout(function() {
             if(fn.supportOrientation) {
