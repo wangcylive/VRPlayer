@@ -3,8 +3,11 @@
  * Bugs
  * UC Android 浏览器改变 canvas 大小导致模型图片材质失效,需要在改变大小后设置 texture.needUpdate = true
  * 华为手机系统浏览器显示效果太差
- * HTC 5.0 默认浏览器调用全屏没有作用; 不能同时绑定两个 deviceorientation 事件, 载入就开始检测是否支持陀螺仪
+ * HTC 5.0 默认浏览器调用全屏没有作用; 不能同时绑定两个 deviceorientation 事件
  * IOS 浏览器不支持全屏
+ *
+ * window IE11 以下不支持 webGL，IE11不支持渲染 video
+ * Edge 支持
  */
 
 ;(function(jQuery) {
@@ -28,7 +31,7 @@
         MIN_FOV = 30,      // camera 视角最大值
         MAX_FOV = 120;     // camera 视角最小值
 
-    var supportOrientation = 1;  // 是否支持陀螺仪,加载后检测是否支持
+    var supportOrientation = 0;  // 是否支持陀螺仪,加载后检测是否支持
 
     var btnActiveClassName = "active";
 
@@ -46,7 +49,10 @@
             qq: /MQQBrowser/i.test(u),
             uc: /UCBrowser/i.test(u),
             chrome: /Chrome\/[\d\.]+ Mobile Safari\/[\d\.]+$/i.test(u),
-            firefox: /Firefox/i.test(u)
+            firefox: /Firefox/i.test(u),
+            ie: /MSIE/i.test(u),
+            ie11: /Trident\/7\.0/i.test(u),
+            edge: /Edge/i.test(u)
         }
     }());
 
@@ -1019,21 +1025,12 @@
     }
 
     function defaultDisplay(nodeName) {
-        var iframe = document.createElement("iframe");
-        iframe.width = 0;
-        iframe.height = 0;
-        iframe.frameBorder = 0;
-
-        document.documentElement.appendChild(iframe);
-
-        var doc = iframe.contentDocument;
-
-        var elem = doc.createElement(nodeName);
-        doc.body.appendChild(elem);
+        var elem = document.createElement(nodeName);
+        document.body.appendChild(elem);
 
         var display = $.css(elem, "display");
 
-        document.documentElement.removeChild(iframe);
+        document.body.removeChild(elem);
 
         return display;
     }
