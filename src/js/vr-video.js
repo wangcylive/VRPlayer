@@ -1619,7 +1619,7 @@
 
     var rtrim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g;
 
-    var version = "1.0.0",
+    var version = "1.1.0",
         expando = "JQ" + (version + Math.random()).replace(/\D/g, ""),
         guid = 0;  // globally unique identifier
 
@@ -2038,46 +2038,60 @@
 
             return this;
         },
-        addClass: function (className) {
-            if ("string" === typeof className && (className = $.trim(className))) {
+        addClass: function(className) {
+            if("string" === typeof className && (className = $.trim(className))) {
                 className = className.split(/\s+/);
 
-                this.each(function (itemNode) {
-                    className.forEach(function (itemName) {
-                        itemNode.classList.add(itemName);
-                    })
+                this.each(function(itemNode) {
+                    var curClassName = itemNode.className.split(/\s+/);
+
+                    className.forEach(function(itemName) {
+                        if(-1 === curClassName.indexOf(itemName)) {
+                            curClassName.push(itemName);
+                        }
+                    });
+
+                    itemNode.className = curClassName.join(" ");
                 });
             }
 
             return this;
         },
-        removeClass: function (className) {
-            if ("string" === typeof className && (className = $.trim(className))) {
+        removeClass: function(className) {
+            if("string" === typeof className && (className = $.trim(className))) {
                 className = className.split(/\s+/);
 
-                this.each(function (itemNode) {
-                    className.forEach(function (itemName) {
-                        itemNode.classList.remove(itemName);
+                this.each(function(itemNode) {
+                    var curClassName = itemNode.className.split(/\s+/);
+
+                    className.forEach(function(itemName) {
+                        var index = curClassName.indexOf(itemName);
+
+                        if(-1 !== index) {
+                            curClassName.splice(index, 1);
+                        }
                     });
+
+                    itemNode.className = curClassName.join(" ");
                 })
             }
 
             return this;
         },
-        hasClass: function (className) {
-            if ("string" === typeof className && (className = $.trim(className)) && this.length > 0) {
+        hasClass: function(className) {
+            if("string" === typeof className && (className = $.trim(className)) && this.length > 0) {
                 className = className.split(/\s+/);
 
                 var has = true;
 
-                for (var i = 0; i < this.length; i++) {
+                for(var i = 0; i < this.length; i++) {
                     var itemNode = this[i];
 
-                    has = className.every(function (itemName) {
-                        return itemNode.classList.contains(itemName)
+                    has = className.every(function(itemName) {
+                        return -1 !== itemNode.className.split(/\s+/).indexOf(itemName);
                     });
 
-                    if (!has) {
+                    if(!has) {
                         return false;
                     }
                 }
