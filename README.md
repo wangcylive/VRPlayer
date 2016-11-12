@@ -2,6 +2,11 @@
 VR play for image and video<br>
 supported **AMD** loaded
 
+## preview
+
+[Video](https://wangcylive.github.io/VRPlayer/src/video.html)<br>
+[Image](https://wangcylive.github.io/VRPlayer/src/image.html)
+
 ## video
 ###usage
 ```javascript
