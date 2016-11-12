@@ -72,47 +72,47 @@
     <div class="ul"></ul>
 </div>-->
 
-<script src="js/require.js"></script>
-<!--<script src="js/three.min.js"></script>
+<!--<script src="js/require.js"></script>-->
+<script src="js/three.min.js"></script>
 <script src="js/three-extend.min.js"></script>
-<script src="js/vr-image.min.js"></script>-->
+<script src="js/vr-image.min.js"></script>
 <script>
-    require.config({
+    /*require.config({
         baseUrl: "./js",
         paths: {
             "three": "three.min",
             "three-extend": "three-extend"
         }
+    });*/
+
+    /*require(["require", "three", "three-extend", "vr-image"], function (require) {
+
+    });*/
+
+    var imageVR = require("vr-image");
+
+    var fn = imageVR(document.getElementById("container"), {
+        src: "img/01.jpg"
     });
 
-    require(["require", "three", "three-extend", "vr-image"], function (require) {
-        var imageVR = require("vr-image");
-
-        var fn = imageVR(document.getElementById("container"), {
-            src: "img/01.jpg"
-        });
-
-        imageVR.deviceorientation = function(event) {
-            console.log(event);
-        };
+    imageVR.deviceorientation = function(event) {
+        console.log(event);
+    };
 
 
-        fn.on("error", function () {
-            alert("图片加载失败");
-        });
-
-        fn.on("load", function () {
-            document.getElementById("pageLoading").style.display = "none";
-        });
-
-        setTimeout(function() {
-            if(fn.supportOrientation) {
-                fn.changeOrientation();
-            }
-        }, 10);
-
-
+    fn.on("error", function () {
+        alert("图片加载失败");
     });
+
+    fn.on("load", function () {
+        document.getElementById("pageLoading").style.display = "none";
+    });
+
+    setTimeout(function() {
+        if(fn.supportOrientation) {
+            fn.changeOrientation();
+        }
+    }, 10);
 </script>
 </body>
 </html>

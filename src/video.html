@@ -24,40 +24,43 @@
 
 </div>
 
-<script src="js/require.js"></script>
-<!--<script src="js/three.min.js"></script>
+<!--<script src="js/require.js"></script>-->
+<script src="js/three.min.js"></script>
 <script src="js/three-extend.min.js"></script>
-<script src="js/vr-video.min.js"></script>-->
+<script src="js/vr-video.min.js"></script>
 <script>
-    require.config({
+    /*require.config({
         baseUrl: "./js",
         paths: {
             "three": "three.min",
             "three-extend": "three-extend"
         }
-    });
+    });*/
 
-    require(["require", "three", "three-extend", "vr-video"], function (require) {
-        var videoJs = require("vr-video");
+    /*require(["require", "three", "three-extend", "vr-video"], function (require) {
 
-        var fn = videoJs(document.getElementById("container"), {
-            src: "http://cache.utovr.com/s1dwhwa1sofb3pczsj/L2_1920_3_25.mp4"
+
+    });*/
+
+
+    var videoJs = require("vr-video");
+
+    var fn = videoJs(document.getElementById("container"), {
+        src: "http://cache.utovr.com/s1dwhwa1sofb3pczsj/L2_1920_3_25.mp4"
 //            src: "img/02.mp4"
 //            src: "http://video.qncdn.720yun.com/@/23d2aqOfynv/pc_1463207245.mp4?wsiphost=local",
 //            ratio: 3 / 5
-        });
-
-        fn.on("error", function (event) {
-            console.log(this.error);
-        });
-
-        setTimeout(function() {
-            if(fn.supportOrientation) {
-                fn.changeOrientation();
-            }
-        }, 10);
-
     });
+
+    fn.on("error", function (event) {
+        console.log(this.error);
+    });
+
+    setTimeout(function() {
+        if(fn.supportOrientation) {
+            fn.changeOrientation();
+        }
+    }, 10);
 
 </script>
 </body>
