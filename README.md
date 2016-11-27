@@ -10,7 +10,7 @@ supported **AMD** loaded
 ## video
 ###usage
 ```javascript
-var videoObj = videoJs(element, config);
+var vr = videoJs(element, config);
 ```
 ###config
 ```javascript
@@ -25,64 +25,47 @@ config = {
 ###propetry
 ```javascript
 // if vr has this property
-videoObj.supportOrientation
+vr.supportOrientation
 
-videoObj.supportWebGL
+vr.supportWebGL
 
-videoObj.supportVR
+vr.supportVR
 
-videoObj.fov
+vr.fov
 
-videoObj.isOrientation
+vr.isOrientation
 
-videoObj.isVR
+vr.isVR
 
-videoObj.isVRView
+vr.isVRView
 ```
 
 ###method
 ```javascript
 // if vr has this method
-videoObj.requestStereo()
+vr.requestStereo()
 
-videoObj.exitStereo()
+vr.exitStereo()
 
-videoObj.changeOrientation();
+vr.changeOrientation();
 
-videoObj.resize();
+vr.resize();
 // end if
 
-
-videoObj.play();
-
-videoObj.pause();
-
-videoObj.seek(second);
-
-videoObj.seekTo(second);
-
-videoObj.mute(is);
-
-// number 0 to 1
-videoObj.volume(number);
-
 // change fullscreen
-videoObj.fullscreen();
-
-// event bind
-videoOjb.on(events, handler);
+vr.fullscreen();
 ```
 
 ## image
 ###usage
 ```javascript
-var imageObj = imageVR(element, config);
+var vr = imageVR(element, config);
 ```
 
 ###config
 ```javascript
 config = {
-	src: "",     // image resource
+	url: "",     // image resource
 	ratio: 2/3   // if is a number set element padding-top
 }
 ```
@@ -90,30 +73,30 @@ config = {
 ###propetry
 ```javascript
 // if vr has this property
-imageObj.supportOrientation
+vr.supportOrientation
 
-imageObj.supportWebGL
+vr.supportWebGL
 
-imageObj.supportVR
+vr.supportVR
 
-imageObj.fov
+vr.fov
 
-imageObj.isOrientation
+vr.isOrientation
 
-imageObj.isVRView
+vr.isVRView
 ```
 
 ###method
 ```javascript
-imageObj.requestStereo()
+vr.requestStereo()
 
-imageObj.exitStereo()
+vr.exitStereo()
 
-imageObj.changeOrientation();
+vr.changeOrientation();
 
-imageObj.resize();
+vr.resize();
 
-imageObj.fullscreen();
+vr.fullscreen();
 
-imageObj.on(events, handler);
+vr.setUrl(imageUrl);
 ```

@@ -20,8 +20,22 @@
         $doc = $(doc),
         $body = $(body);
 
-    var animationClassName = "vp-animated vp-zoomOut",
-        btnActiveClassName = "active";
+    var VERSION = "1.1.1";
+
+    var zoom_out_class_name = "vp-zoomOut",
+        active_class_name = "active",
+        lock_class_name = "vr-lock",
+        full_class_name = "is-fullscreen",
+        mouseout_class_name = "is-mouseout",
+        stalled_class_name = "is-stalled",
+        loading_class_name = "is-loading",
+        playing_class_name = "is-playing",
+        paused_class_name = "is-paused",
+        ended_class_name = "is-ended",
+        animation_class_name = "is-animation",
+        error_class_name = "is-error",
+        load_class_name = "is-load",
+        ready_class_name = "is-ready";
 
     var controlDisplayTime = 4000;   // 未操作控制台显示时间
     var seekTimeDisplayTime = 1000;  // 快进显示时间
@@ -416,104 +430,57 @@
     }
 
     videoJs.fn = videoJs.prototype = {
-        version: "1.1.0",
+        version: VERSION,
         constructor: videoJs,
-        play: function () {
-            var video = this.video;
-            if (video) {
-                video.play();
-            }
-            return this;
-        },
-        pause: function () {
-            var video = this.video;
-            if (video) {
-                video.pause();
-            }
-            return this;
-        },
-        seek: function (second) {
-            var video = this.video;
-            if (video && this.readyState === 4 && typeof second === "number") {
-                video.currentTime += second;
-            }
-            return this;
-        },
-        seekTo: function (second) {
-            var video = this.video;
-            if (video && this.readyState === 4 && typeof second === "number") {
-                video.currentTime = second;
-            }
-            return this;
-        },
-        mute: function (is) {
-            var video = this.video;
-            if (video && this.readyState === 4) {
-                video.muted = Boolean(is);
-            }
-            return this;
-        },
-        volume: function (number) {
-            var video = this.video;
-            if (video && this.readyState === 4 && typeof number === "number") {
-                if (number < 0) {
-                    number = 0;
-                } else if (number > 1) {
-                    number = 1;
-                }
-
-                video.volume = number;
-            }
-            return this;
-        },
+        browser: browser,
         fullscreen: function () {
-            if (4 === this.readyState && this.main) {
-                var $main = $(this.main),
-                    className = "is-fullscreen";
+            var $main = this.main;
 
-                if ($main.hasClass(className)) {
+            if ($main) {
+                if ($main.hasClass(full_class_name)) {
                     fullscreen.exit();
-                    $body.removeClass("vr-full");
-                    $main.removeClass(className);
+                    $body.removeClass(lock_class_name);
+                    $main.removeClass(full_class_name);
                 } else {
                     fullscreen.request();
-                    $body.addClass("vr-full");
-                    $main.addClass(className);
+                    $body.addClass(lock_class_name);
+                    $main.addClass(full_class_name);
                 }
             }
             return this;
         },
-        on: function (events, handler) {
-            var video = this.video;
-            if (video && typeof events === "string" && (events = $.trim(events)) && typeof handler === "function") {
+        setSrc: function(url) {
+            var $video = this.video;
 
-                $(video).on(events, handler);
+            if($video) {
+                $video.attr("src", url);
+                this.main.removeClass(error_class_name + " " + playing_class_name).addClass(paused_class_name);
+
+                try {
+                    $video[0].load();
+                    $video[0].pause();
+                    $video[0].currentTime = 0;
+                    $video.trigger("timeupdate");
+                } catch (e) {}
             }
-            return this;
         },
         toast: (function () {
-            var elem = doc.getElementById("toast"),
+            var $elem = $("#vpToast"),
                 duration = 4000,
                 isVisible = 0,
                 identity;
 
-            if (elem === null) {
-                elem = doc.createElement("div");
-                elem.id = "toast";
-                elem.className = "toast";
-                elem.style.display = "none";
-                body.appendChild(elem);
+            if (undefined === $elem[0]) {
+                $elem = $.createElem("div", "vp-toast").attr("id", "vpToast").hide();
+                $body.append($elem);
             }
 
-            var style = elem.style;
-
             function show(text) {
-                elem.textContent = text;
-                style.display = "block";
+                $elem.text(text).show();
                 isVisible = 1;
                 clearTimeout(identity);
                 identity = setTimeout(function () {
-                    style.display = "none";
+                    $elem.hide();
                     isVisible = 0;
                 }, duration);
 
@@ -523,7 +490,7 @@
             function hide() {
                 if (isVisible) {
                     clearTimeout(identity);
-                    style.display = "none";
+                    $elem.hide();
                     isVisible = 0;
                 }
             }
@@ -546,6 +513,8 @@
         if(!conf || "string" !== typeof conf.src) {
             throw new Error("second argument must be Object and attribute src must be String");
         }
+
+        conf = "object" === typeof conf ? conf : {};
 
         var config = {
             /*ratio: 272 / 480,*/
@@ -647,9 +616,11 @@
             "preload": "none",
             "webkit-playsinline": "",
             "playsinline": "",
-            "x-webkit-airplay": "allow",
-            "src": config.src
+            "x-webkit-airplay": "allow"
         });
+
+
+        $video.attr("src", config.src);
 
         if(config.ratio) {
             $ratio.css("padding-top", config.ratio * 100 + "%");
@@ -662,7 +633,7 @@
             $main.css("background-image", "url(" + config.poster + ")");
         }
 
-        $uiWaiting.html("<i class=\"icon-loading vp-animated vp-rotate infinite linear\"></i>");
+        $uiWaiting.html("<i class=\"icon-loading vp-rotate\"></i>");
         $ui.append($uiPlay).append($uiPause).append($uiWaiting).append($uiMessage);
         $main.append($ui);
 
@@ -681,14 +652,14 @@
         var video = $video[0];
 
         if ("function" !== typeof video.canPlayType) {
-            $main.addClass("is-error");
+            $main.addClass(error_class_name);
             $uiMessage.html("您的浏览器不支持html5 video！");
 
             return this;
         }
 
-        _videoJs.video = video;
-        _videoJs.main = elem;
+        _videoJs.video = $video;
+        _videoJs.main = $main;
 
         $currentTime.text("00:00");
         $duration.text("00:00");
@@ -709,8 +680,9 @@
             $handle.append($fullscreen);
         }
 
-        $video.attr("src", config.src);
-
+        if(config.src) {
+            $video.attr("src", config.src);
+        }
 
         // 是否开始播放
         var isStartPlaying = 0;
@@ -727,14 +699,14 @@
 
             function clear() {
                 clearTimeout(timeoutID);
-                $main.removeClass("is-mouseout");
+                $main.removeClass(mouseout_class_name);
             }
 
             function set() {
                 clearTimeout(timeoutID);
                 timeoutID = setTimeout(function () {
                     if (!video.paused) {
-                        $main.addClass("is-mouseout");
+                        $main.addClass(mouseout_class_name);
                     }
                 }, controlDisplayTime);
             }
@@ -778,14 +750,14 @@
         var stalledTimeoutID;
 
         function stalledHandler() {
-            $main.addClass("is-stalled");
+            $main.addClass(stalled_class_name);
             $uiMessage.text(VIDEO_STATE_MESSAGE[0]);
 
             clearTimeout(stalledTimeoutID);
 
             stalledTimeoutID = setTimeout(function () {
                 $uiMessage.text("");
-                $main.removeClass("is-stalled");
+                $main.removeClass(stalled_class_name);
             }, 5000);
 
             $video.off("stalled", stalledHandler);
@@ -887,11 +859,11 @@
             var _this = this,
                 code = _this.error.code;
 
-            $main.removeClass("is-loading is-playing is-paused is-stalled").addClass("is-error");
+            $main.removeClass("is-loading is-playing is-paused is-stalled").addClass(error_class_name);
 
             // 提示重新加载
             if (code === 1 || code === 2) {
-                $main.addClass("is-load");
+                $main.addClass(load_class_name);
                 $uiMessage.html(VIDEO_STATE_MESSAGE[1]);
 
                 // 点击重新加载
@@ -903,18 +875,17 @@
                     $currentTime.text("00:00");
                     $buffer.css("width", "0%");
                     $elapsed.css("width", "0%");
-                    $main.removeClass("is-error is-load");
+                    $main.removeClass(error_class_name + " " + load_class_name);
                 });
             } else {
                 $uiMessage.html(VIDEO_ERRORS_MESSAGE[code]);
-                // TODO 清除绑定事件
             }
 
         }).on("ended", function () {  // 播放结束
             var _this = this;
             _this.pause();
 
-            $main.addClass("is-ended");
+            $main.addClass(ended_class_name);
             $uiMessage.html(VIDEO_STATE_MESSAGE[2]);
             $ui.one("click", function () {
                 _this.play();
@@ -925,7 +896,7 @@
                 $currentTime.text("00:00");
                 $buffer.css("width", "0%");
                 $elapsed.css("width", "0%");
-                $main.removeClass("is-ended");
+                $main.removeClass(ended_class_name);
             });
         }).on("durationchange", function () {  // 资源长度发生改变
             var duration = this.duration;
@@ -945,17 +916,17 @@
 
             if (!supportAnimationEvent) {
                 $uiPlay.hide();
-                $main.addClass("is-loading");
+                $main.addClass(loading_class_name);
                 loadingRotateMethod.start();
             } else {
-                $main.addClass("is-animation is-loading");
+                $main.addClass(animation_class_name + " " + loading_class_name);
             }
 
             // 由于Android bug 需要判断是否有 timeupdate 事件触发才可确认是否真正播放
             $video.one("timeupdate", function () {
                 isStartPlaying = 1;
 
-                $main.removeClass("is-loading").addClass("is-ready is-playing");
+                $main.removeClass(loading_class_name).addClass(ready_class_name + " " + playing_class_name);
                 if (!supportAnimationEvent) {
                     loadingRotateMethod.stop();
                 }
@@ -963,7 +934,7 @@
                 mouseoutTimeout.set();
             });
         }).on("waiting", function () {  // 在播放由于视频的下一帧不可用（可能需要缓冲）而停止时引发
-            $main.addClass("is-loading");
+            $main.addClass(loading_class_name);
             if (!supportAnimationEvent) {
                 loadingRotateMethod.start();
             }
@@ -990,12 +961,11 @@
             if (isStartPlaying && dragSeekingEnd) {  // TODO chrome mobile 拖动后好几秒才会有时间的更改
                 var time = this.currentTime;
                 $currentTime.text(formatSecond(time));
-                $elapsed.css("width", time / video.duration * 100 + "%");
+                $elapsed.css("width", (time / video.duration * 100 || 0) + "%");
             }
         }).on("playing", function () {
             if (isStartPlaying) {
-                $main.removeClass("is-loading");
-                $main.addClass("is-playing");
+                $main.removeClass(loading_class_name).addClass(playing_class_name);
                 $video.on("stalled", stalledHandler);
                 if (!supportAnimationEvent) {
                     $uiPlay.hide();
@@ -1003,54 +973,58 @@
                 }
             }
         }).on("seeking", function () {
-            $main.addClass("is-loading");
+            $main.addClass(loading_class_name);
             if (!supportAnimationEvent) {
                 loadingRotateMethod.start();
             }
         }).on("seeked", function () {
-            $main.removeClass("is-loading");
+            $main.removeClass(loading_class_name);
             if (!supportAnimationEvent) {
                 loadingRotateMethod.stop();
             }
 
             // IE播放中 seeked 不会触发 playing 事件，在这里处理兼容
             if (!this.paused) {
-                $main.addClass("is-playing");
+                $main.addClass(playing_class_name);
             }
         }).on("play", function () {
-            $main.removeClass("is-paused");
+            $main.removeClass(paused_class_name);
 
             if (supportAnimationEvent) {
                 uiAnimationStatus = 1;
 
-                $uiPlay.show().addClass(animationClassName);
-                $main.addClass("is-animation");
+                $uiPlay.show().addClass(zoom_out_class_name);
+                $main.addClass(animation_class_name);
+
+                $uiPause.hide();
             }
         }).on("pause", function () {
             if (isStartPlaying) {
-                $main.addClass("is-paused").removeClass("is-playing");
+                $main.addClass(paused_class_name).removeClass(playing_class_name);
 
                 if (!this.ended) {
                     if (supportAnimationEvent) {
                         uiAnimationStatus = 2;
 
-                        $uiPause.show().addClass(animationClassName);
-                        $main.addClass("is-animation");
+                        $uiPause.show().addClass(zoom_out_class_name);
+                        $main.addClass(animation_class_name);
+
+                        $uiPlay.hide();
                     } else {
                         $uiPlay.show();
                     }
                 }
             } else {
-                $main.removeClass("is-loading is-animation");
-                $uiPlay.show().removeClass(animationClassName);
+                $main.removeClass(animation_class_name + " " + loading_class_name);
+                $uiPlay.show().removeClass(zoom_out_class_name);
 
                 $video.one("play", function () {
                     if (!supportAnimationEvent) {
                         $uiPlay.hide();
-                        $main.addClass("is-loading");
+                        $main.addClass(loading_class_name);
                         loadingRotateMethod.start();
                     } else {
-                        $main.addClass("is-animation is-loading");
+                        $main.addClass(animation_class_name + " " + loading_class_name);
                     }
                 });
 
@@ -1068,8 +1042,8 @@
 
         $uiPlay.on(animationEnd, function () {
             if (1 === uiAnimationStatus) {
-                $uiPlay.hide().removeClass(animationClassName);
-                $main.removeClass("is-animation");
+                $uiPlay.hide().removeClass(zoom_out_class_name);
+                $main.removeClass(animation_class_name);
 
                 // 用于视频刚开始点击播放就暂停时的逻辑
                 if (!isStartPlaying && video.paused) {
@@ -1082,8 +1056,8 @@
 
         $uiPause.on(animationEnd, function () {
             if (2 === uiAnimationStatus) {
-                $uiPause.hide().removeClass(animationClassName);
-                $main.removeClass("is-animation");
+                $uiPause.hide().removeClass(zoom_out_class_name);
+                $main.removeClass(animation_class_name);
 
                 uiAnimationStatus = 0;
             }
@@ -1172,7 +1146,7 @@
         documentVisibility.on(function () {
             if (doc[documentVisibility.hidden]) {
                 video.pause();
-                $main.removeClass("is-mouseout");
+                $main.removeClass(mouseout_class_name);
             }
         });
 
@@ -1188,13 +1162,13 @@
             $ui.on("click", function () {
                 if (!video.error && !vr_isMove) {
                     if (video.paused) {
-                        $main.removeClass("is-mouseout");
+                        $main.removeClass(mouseout_class_name);
                         video.play();
                     } else {
-                        if (!$main.hasClass("is-mouseout")) {
+                        if (!$main.hasClass(mouseout_class_name)) {
                             video.pause();
                         } else {
-                            $main.removeClass("is-mouseout");
+                            $main.removeClass(mouseout_class_name);
                         }
                     }
                     if (isStartPlaying) {
@@ -1217,16 +1191,16 @@
 
         // 全屏按钮
         $fullscreen.on("click", function () {
-            if ($main.hasClass("is-fullscreen")) {
+            if ($main.hasClass(full_class_name)) {
                 fullscreen.exit();
-                $body.removeClass("vr-full");
-                $main.removeClass("is-fullscreen");
-                $fullscreen.removeClass(btnActiveClassName);
+                $body.removeClass(lock_class_name);
+                $main.removeClass(full_class_name);
+                $fullscreen.removeClass(active_class_name);
             } else {
                 fullscreen.request();
-                $body.addClass("vr-full");
-                $main.addClass("is-fullscreen");
-                $fullscreen.addClass(btnActiveClassName);
+                $body.addClass(lock_class_name);
+                $main.addClass(full_class_name);
+                $fullscreen.addClass(active_class_name);
             }
 
             if(isVR) {
@@ -1237,9 +1211,9 @@
         // 全屏事件改变触发
         fullscreen.on(function () {  // TODO chrome 仿移动浏览器退出全屏未触发事件
             if (doc[fullscreen.fullscreenElement] !== doc.documentElement) {
-                $body.removeClass("vr-full");
-                $main.removeClass("is-fullscreen");
-                $fullscreen.removeClass(btnActiveClassName);
+                $body.removeClass(lock_class_name);
+                $main.removeClass(full_class_name);
+                $fullscreen.removeClass(active_class_name);
             }
 
             if(isVR) {
@@ -1446,7 +1420,7 @@
                 _videoJs.isOrientation = 1;
             }
 
-            $body.addClass("vr-full");
+            $body.addClass(lock_class_name);
             $main.addClass("is-vr");
 
             $exitVR.show();
@@ -1472,11 +1446,11 @@
 
             orientationControls.disconnect();
             _videoJs.isOrientation = 0;
-            $orientation.removeClass(btnActiveClassName);
+            $orientation.removeClass(active_class_name);
 
             fullscreen.exit();
 
-            $body.removeClass("vr-full");
+            $body.removeClass(lock_class_name);
             $main.removeClass("is-vr");
 
             clearTimeout(hideExitVRTimeoutID);
@@ -1484,7 +1458,7 @@
 
             $main.off("click", hideExitVR);
 
-            $fullscreen.removeClass(btnActiveClassName);
+            $fullscreen.removeClass(active_class_name);
 
             vrResize();
 
@@ -1495,10 +1469,10 @@
             if (supportOrientation) {
                 if (_videoJs.isOrientation) {
                     orientationControls.disconnect();
-                    $orientation.removeClass(btnActiveClassName);
+                    $orientation.removeClass(active_class_name);
                 } else {
                     orientationControls.connect();
-                    $orientation.addClass(btnActiveClassName);
+                    $orientation.addClass(active_class_name);
                 }
 
                 _videoJs.isOrientation = !_videoJs.isOrientation;
@@ -1619,8 +1593,7 @@
 
     var rtrim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g;
 
-    var version = "1.1.0",
-        expando = "JQ" + (version + Math.random()).replace(/\D/g, ""),
+    var expando = "JQ" + (Math.random() + "").replace(/\D/g, ""),
         guid = 0;  // globally unique identifier
 
     $.expando = expando;
@@ -1753,29 +1726,28 @@
     };
 
     function showHide(elements, show) {
-        var elem, style;
+        var elem, style, nodeName;
 
         for (var i = 0; i < elements.length; i++) {
             elem = elements[i];
             style = elem.style;
-
-            var elemGuid = setElemGuid(elem);
+            nodeName = elem.nodeName;
 
             if (show) {
                 style.display = "";
 
                 if ($.isHidden(elem)) {
-                    if (_defaultDisplayCache.hasOwnProperty(elemGuid)) {
-                        style.display = _defaultDisplayCache[elemGuid];
+                    if (_defaultDisplayCache.hasOwnProperty(nodeName)) {
+                        style.display = _defaultDisplayCache[nodeName];
                     } else {
-                        style.display = _defaultDisplayCache[elemGuid] = defaultDisplay(elem.nodeName);
+                        style.display = _defaultDisplayCache[nodeName] = defaultDisplay(elem.nodeName);
                     }
                 } else {
-                    _defaultDisplayCache[elemGuid] = $.css(elem, "display");
+                    _defaultDisplayCache[nodeName] = $.css(elem, "display");
                 }
             } else {
                 if (!$.isHidden(elem)) {
-                    _defaultDisplayCache[elemGuid] = $.css(elem, "display");
+                    _defaultDisplayCache[nodeName] = $.css(elem, "display");
 
                     style.display = "none";
                 }

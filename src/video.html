@@ -20,14 +20,14 @@
 </head>
 <body>
 
-<div id="container">
+<div id="container" class="">
 
 </div>
 
 <!--<script src="js/require.js"></script>-->
 <script src="js/three.min.js"></script>
 <script src="js/three-extend.min.js"></script>
-<script src="js/vr-video.min.js"></script>
+<script src="js/vr-video.js"></script>
 <script>
     /*require.config({
         baseUrl: "./js",
@@ -48,15 +48,11 @@
 //            ratio: 3 / 5
     });
 
-    fn.on("error", function (event) {
+    console.log(fn);
+
+    fn.video.on("error", function() {
         console.log(this.error);
     });
-
-    setTimeout(function() {
-        if(fn.supportOrientation) {
-            fn.changeOrientation();
-        }
-    }, 10);
 
 </script>
 </body>
