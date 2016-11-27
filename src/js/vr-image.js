@@ -282,11 +282,11 @@
         constructor: imageVR,
         jQuery: $,
         browser: browser,
-        setUrl: function(url) {
+        setSrc: function(src) {
             var $image = this.image;
 
             if($image) {
-                $image.attr("src", url);
+                $image.attr("src", src);
             }
         },
         fullscreen: function () {
@@ -835,8 +835,8 @@
             throw new Error("Image resource loaded errors.");
         });
 
-        if(conf.url) {
-            $image.attr("src", config.url);
+        if(conf.src) {
+            $image.attr("src", config.src);
         }
 
         renderer.setSize(elem.clientWidth, elem.clientHeight);

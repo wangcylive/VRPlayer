@@ -54,6 +54,9 @@ vr.resize();
 
 // change fullscreen
 vr.fullscreen();
+
+// change video src
+vr.setSrc();
 ```
 
 ## image
@@ -65,7 +68,7 @@ var vr = imageVR(element, config);
 ###config
 ```javascript
 config = {
-	url: "",     // image resource
+	src: "",     // image resource
 	ratio: 2/3   // if is a number set element padding-top
 }
 ```
@@ -98,5 +101,6 @@ vr.resize();
 
 vr.fullscreen();
 
-vr.setUrl(imageUrl);
+// change image src
+vr.setSrc(imageSrc);
 ```

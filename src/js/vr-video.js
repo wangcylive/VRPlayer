@@ -449,11 +449,11 @@
             }
             return this;
         },
-        setSrc: function(url) {
+        setSrc: function(src) {
             var $video = this.video;
 
             if($video) {
-                $video.attr("src", url);
+                $video.attr("src", src);
                 this.main.removeClass(error_class_name + " " + playing_class_name).addClass(paused_class_name);
 
                 try {
