@@ -277,11 +277,12 @@
         return new imageVR.fn.init(elem, src);
     }
 
+    imageVR.jQuery = $;
+    imageVR.browser = browser;
+
     imageVR.fn = imageVR.prototype = {
         version: VERSION,
         constructor: imageVR,
-        jQuery: $,
-        browser: browser,
         setSrc: function(src) {
             var $image = this.image;
 
@@ -828,6 +829,10 @@
             $message.hide();
 
             texture.needsUpdate = true;
+
+            if("function" === typeof _vr.load) {
+                _vr.load(event);
+            }
         }).on("error", function() {
             $loading.hide();
             $message.text(MESSAGES[3]).show();

@@ -59,7 +59,7 @@
         "视频加载中止",
         "网络错误",
         "视频解码错误",
-        "视频资源未找到或不支持播放视频资源"
+        "视频资源未找到或资源不可用"
     ];
 
     var VIDEO_STATE_MESSAGE = [
@@ -203,11 +203,11 @@
     // 支持陀螺仪检测
     $root.one("deviceorientation", function (event) {
         supportOrientation = null !== event.alpha;
-        videoJs.fn.supportOrientation = supportOrientation;
-        videoJs.fn.testedOrientation = true;
+        videoVR.fn.supportOrientation = supportOrientation;
+        videoVR.fn.testedOrientation = true;
 
-        if("function" === typeof videoJs.deviceorientation) {
-            videoJs.deviceorientation(supportOrientation);
+        if("function" === typeof videoVR.deviceorientation) {
+            videoVR.deviceorientation(supportOrientation);
         }
     });
 
@@ -425,14 +425,16 @@
         transitionEnd = getTransitionEndEvent(),
         animationEnd = getAnimationEvent("AnimationEnd");
 
-    function videoJs(ele, obj) {
-        return new videoJs.fn.init(ele, obj);
+    function videoVR(ele, obj) {
+        return new videoVR.fn.init(ele, obj);
     }
 
-    videoJs.fn = videoJs.prototype = {
+    videoVR.jQuery = $;
+    videoVR.browser = browser;
+
+    videoVR.fn = videoVR.prototype = {
         version: VERSION,
-        constructor: videoJs,
-        browser: browser,
+        constructor: videoVR,
         fullscreen: function () {
             var $main = this.main;
 
@@ -455,6 +457,7 @@
             if($video) {
                 $video.attr("src", src);
                 this.main.removeClass(error_class_name + " " + playing_class_name).addClass(paused_class_name);
+                this.main[0].querySelector(".message").innerHTML = "";
 
                 try {
                     $video[0].load();
@@ -505,7 +508,7 @@
         supportOrientation: supportOrientation
     };
 
-    videoJs.fn.init = function (elem, conf) {
+    videoVR.fn.init = function (elem, conf) {
         if(!elem || elem.nodeType !== 1) {
             throw new Error("first argument must be Element");
         }
@@ -1575,16 +1578,16 @@
         }
     };
 
-    videoJs.prototype.init.prototype = videoJs.prototype;
+    videoVR.prototype.init.prototype = videoVR.prototype;
 
     if ("function" === typeof define && define.amd) {
         define(["three", "three-extend"], function () {
-            return videoJs;
+            return videoVR;
         });
     } else if ("object" === typeof exports) {
-        module.exports = videoJs;
+        module.exports = videoVR;
     } else {
-        window.videoJs = videoJs;
+        window.videoVR = videoVR;
     }
 }(function () {
     var $ = function (selector) {
