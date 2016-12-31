@@ -1523,6 +1523,7 @@
 
             renderer.setSize(elem.clientWidth, elem.clientHeight);
             renderer.setClearColor(0x666666);
+            renderer.setPixelRatio(window.devicePixelRatio || 1);
             domElement = renderer.domElement;
             $(domElement).addClass("vp-video");
             $main.append(domElement);
