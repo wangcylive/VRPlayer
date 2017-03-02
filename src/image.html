@@ -21,11 +21,19 @@
             height: 100%;
         }
 
+        .btn-destroy {
+            position: absolute;
+            left: 10px;
+            top: 10px;
+            z-index: 999;
+        }
+
     </style>
 </head>
 <body>
 
 <div class="container" id="container">
+    <button class="btn btn-destroy">destroy</button>
     <!--<div class="ui-vr">
         <div class="loading-vr"><i class="icon rotate"></i><span class="text">记载中...</span></div>
         <div class="message-vr">图片加载错误</div>
@@ -67,6 +75,10 @@
                 vr.changeOrientation();
             }
         };
+
+        document.querySelector(".btn-destroy").addEventListener("click", function () {
+            vr.destroy();
+        });
     });
 </script>
 </body>

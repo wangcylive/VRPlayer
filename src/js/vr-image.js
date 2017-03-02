@@ -19,7 +19,7 @@
         $root = $(root),
         $body = $(body);
 
-    var VERSION = "1.1.1";
+    var VERSION = "1.2.0";
 
     var ACTIVE_CLASS_NAME = "active",
         LOCK_BODY_CLASS_NAME = "vr-lock",
@@ -290,6 +290,32 @@
                 $image.attr("src", src);
             }
         },
+        destroy: function () {
+            cancelAnimationFrame(this.vrRequestID);
+
+            this.image.off();
+
+            var $main = this.main;
+
+            fullscreen.exit();
+
+            $root.off();
+
+            $main.off().find(".ui-vr").off();
+
+            $main.find(".stereo, .orientation, .exit-vr, .fullscreen").off();
+
+            fullscreen.off();
+
+            var mainClassName = ["image-vr", FULL_MAIN_CLASS_NAME, READY_CLASS_NAME, STEREO_CLASS_NAME];
+
+            $main.empty().removeClass(mainClassName.join(" "));
+            $body.removeClass(LOCK_BODY_CLASS_NAME);
+
+            delete this.image;
+
+            this.status = "destroy";
+        },
         fullscreen: function () {
             var $main = this.main;
 
@@ -414,8 +440,6 @@
         var domElement;
 
         var orientationControls;
-
-        var vrRequestID;
 
         // 滑动控制
         var vr_isDrag = 0,
@@ -736,7 +760,7 @@
             texture.needsUpdate = true;
         });
 
-        $image.one("load", function() {
+        $image.on("load", function() {
             $controls.append($stereoEffect).append($fullscreen).append($orientation);
             $main.append($controls).append($exitVR).addClass(READY_CLASS_NAME);
 
@@ -766,9 +790,13 @@
 
             $root.on("resize", vrResize);
 
-            $ui.on("mousedown", vrMouseDown).on("touchstart", vrTouchStart).on("mousemove", vrMouseMove).on("touchmove", vrTouchMove);
+            $ui.on("mousedown", vrMouseDown)
+                .on("touchstart", vrTouchStart)
+                .on("mousemove", vrMouseMove)
+                .on("touchmove", vrTouchMove);
 
-            $ui.on("mouseup mouseout touchcancel", vrMouseUp).on("touchend", vrTouchEnd);
+            $ui.on("mouseup mouseout touchcancel", vrMouseUp)
+                .on("touchend", vrTouchEnd);
 
             $stereoEffect.on("click", requestStereo);
             $orientation.on("click", changeOrientation);
@@ -815,7 +843,7 @@
 
                 renderer.render(scene, camera);
 
-                vrRequestID = requestAnimationFrame(vrUpload);
+                _vr.vrRequestID = requestAnimationFrame(vrUpload);
             };
 
             vrUpload();
@@ -871,12 +899,12 @@
         return new $.fn.init(selector);
     };
 
-    var rtrim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g;
-
-    var expando = "JQ" + (Math.random() + "").replace(/\D/g, ""),
+    var version = "1.3.0",
+        expando = "JQ" + (version + Math.random() + "").replace(/\D/g, ""),
         guid = 0;  // globally unique identifier
 
     $.expando = expando;
+    $.version = version;
 
     var _eventsCache = {};
 
@@ -979,6 +1007,8 @@
         }
     }
 
+    var rtrim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g;
+
     var objToString = Object.prototype.toString;
 
     var arrFn = Array.prototype;
@@ -999,6 +1029,14 @@
 
     $.isArray = function (arg) {
         return Array.isArray(arg);
+    };
+
+    $.arrayFrom = function (arg) {
+        if (Array.from) {
+            return Array.from(arg);
+        } else {
+            return Array.prototype.slice.call(arg, 0);
+        }
     };
 
     $.isObject = function (arg) {
@@ -1242,9 +1280,23 @@
                 selector = undefined;
             }
 
-            var eventsArr = $.trim(types).split(/\s+/);
+            if ("" === $.trim(types)) {
+                this.each(function (elem) {
+                    var elemGuid = elem[expando];
 
-            if (eventsArr.length > 0) {
+                    if (elemGuid) {
+                        for (var x in _eventsCache) {
+                            _eventsCache[x] = _eventsCache[x].filter(function (item) {
+                                return item.guid !== elemGuid;
+                            });
+
+                            elem.removeEventListener(x, _eventHandler, false);
+                        }
+                    }
+                });
+            } else {
+                var eventsArr = $.trim(types).split(/\s+/);
+
                 this.each(function (elem) {
                     var elemGuid = elem[expando];
 
@@ -1290,15 +1342,15 @@
 
             return this;
         },
-        addClass: function(className) {
-            if("string" === typeof className && (className = $.trim(className))) {
+        addClass: function (className) {
+            if ("string" === typeof className && (className = $.trim(className))) {
                 className = className.split(/\s+/);
 
-                this.each(function(itemNode) {
+                this.each(function (itemNode) {
                     var curClassName = itemNode.className.split(/\s+/);
 
-                    className.forEach(function(itemName) {
-                        if(-1 === curClassName.indexOf(itemName)) {
+                    className.forEach(function (itemName) {
+                        if (-1 === curClassName.indexOf(itemName)) {
                             curClassName.push(itemName);
                         }
                     });
@@ -1309,17 +1361,17 @@
 
             return this;
         },
-        removeClass: function(className) {
-            if("string" === typeof className && (className = $.trim(className))) {
+        removeClass: function (className) {
+            if ("string" === typeof className && (className = $.trim(className))) {
                 className = className.split(/\s+/);
 
-                this.each(function(itemNode) {
+                this.each(function (itemNode) {
                     var curClassName = itemNode.className.split(/\s+/);
 
-                    className.forEach(function(itemName) {
+                    className.forEach(function (itemName) {
                         var index = curClassName.indexOf(itemName);
 
-                        if(-1 !== index) {
+                        if (-1 !== index) {
                             curClassName.splice(index, 1);
                         }
                     });
@@ -1330,20 +1382,20 @@
 
             return this;
         },
-        hasClass: function(className) {
-            if("string" === typeof className && (className = $.trim(className)) && this.length > 0) {
+        hasClass: function (className) {
+            if ("string" === typeof className && (className = $.trim(className)) && this.length > 0) {
                 className = className.split(/\s+/);
 
                 var has = true;
 
-                for(var i = 0; i < this.length; i++) {
+                for (var i = 0; i < this.length; i++) {
                     var itemNode = this[i];
 
-                    has = className.every(function(itemName) {
+                    has = className.every(function (itemName) {
                         return -1 !== itemNode.className.split(/\s+/).indexOf(itemName);
                     });
 
-                    if(!has) {
+                    if (!has) {
                         return false;
                     }
                 }
@@ -1388,6 +1440,50 @@
             }
 
             return this;
+        },
+        empty: function () {
+            this.each(function (elem) {
+                if (elem.childNodes) {
+                    var childNodes = elem.childNodes;
+
+                    childNodes = $.arrayFrom(childNodes);
+
+                    childNodes.forEach(function (item) {
+                        elem.removeChild(item);
+                    });
+                }
+            });
+
+            return this;
+        },
+        remove: function () {
+            this.each(function (elem) {
+                if (elem.parentNode) {
+                    $(elem).off();
+
+                    elem.parentNode.removeChild(elem);
+                }
+            });
+
+            return this;
+        },
+        find: function (selector) {
+            this.selector = selector;
+
+            var arrayElem = [];
+
+            this.each(function (elem) {
+                try {
+                    var htmlCollection = elem.querySelectorAll(selector);
+
+                    htmlCollection = $.arrayFrom(htmlCollection);
+
+                    arrayElem = arrayElem.concat(htmlCollection);
+                } catch (e) {
+                }
+            });
+
+            return $(arrayElem);
         }
     };
 
@@ -1405,7 +1501,7 @@
 
             return _this;
         } else if (/^\[object (NodeList|HTMLCollection)]$/.test(objToString.call(selector))) {
-            var elemArr = Array.prototype.slice.call(selector).filter(function (item) {
+            var elemArr = $.arrayFrom(selector).filter(function (item) {
                 return 1 === item.nodeType;
             });
 
@@ -1420,7 +1516,7 @@
 
             return _this;
         } else if (11 === selector.nodeType) {
-            var fragElemArr = Array.prototype.slice.call(selector.children);
+            var fragElemArr = $.arrayFrom(selector.children);
 
             if (fragElemArr.length > 0) {
                 fragElemArr.forEach(function (item, index) {
@@ -1455,6 +1551,17 @@
                     _this.selector = selector;
                     _this.length = nodeLength;
                 }
+            } else if ($.isArray(selector)) {
+
+                selector = selector.filter(function (item) {
+                    return item.nodeType === 1;
+                });
+
+                selector.forEach(function (item, index) {
+                    _this[index] = item;
+                });
+
+                _this.length = selector.length;
             }
 
             return _this;
