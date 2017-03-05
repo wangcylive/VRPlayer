@@ -291,6 +291,10 @@
             }
         },
         destroy: function () {
+            if("destroy" === this.status) {
+                return;
+            }
+
             cancelAnimationFrame(this.vrRequestID);
 
             this.image.off();

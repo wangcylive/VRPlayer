@@ -15,11 +15,21 @@
             margin: 0;
         }
 
+        .btn-destroy {
+            position: absolute;
+            left: 10px;
+            top: 10px;
+            z-index: 9999;
+            width: 100px;
+            height: 30px;
+        }
+
         /*#container{height: 500px;}*/
     </style>
 </head>
 <body>
 
+<button class="btn-destroy">destroy</button>
 <div id="container" class="">
 
 </div>
@@ -41,8 +51,9 @@
         var videoJs = require("vr-video");
     });*/
 
-    var fn = videoJs(document.getElementById("container"), {
-        src: "http://cache.utovr.com/s1dwhwa1sofb3pczsj/L2_1920_3_25.mp4"
+    var fn = videoVR(document.getElementById("container"), {
+        src: "http://cache.utovr.com/s1dwhwa1sofb3pczsj/L2_1920_3_25.mp4",
+        autoplay: true
 //            src: "img/02.mp4"
 //            src: "http://video.qncdn.720yun.com/@/23d2aqOfynv/pc_1463207245.mp4?wsiphost=local",
 //            ratio: 3 / 5
@@ -53,6 +64,10 @@
     fn.video.on("error", function() {
         console.log(this.error);
     });
+
+    document.querySelector(".btn-destroy").addEventListener("click", function () {
+        fn.destroy();
+    }, false);
 
 </script>
 </body>

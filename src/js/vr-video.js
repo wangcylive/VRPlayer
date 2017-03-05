@@ -20,7 +20,7 @@
         $doc = $(doc),
         $body = $(body);
 
-    var VERSION = "1.1.1";
+    var VERSION = "1.2.0";
 
     var zoom_out_class_name = "vp-zoomOut",
         active_class_name = "active",
@@ -467,6 +467,44 @@
                 } catch (e) {}
             }
         },
+        destroy: function() {
+            if("destroy" === this.status) {
+                return;
+            }
+
+            cancelAnimationFrame(this.vrRequestID);
+
+            this.video.off();
+
+            var $main = this.main;
+
+            $main.off();
+
+            $doc.off();
+
+            $root.off();
+
+            documentVisibility.off();
+
+            fullscreen.exit();
+
+            fullscreen.off();
+
+            $main.find(".play, .pause, .vp-seek, .vp-play, .vp-timeline, .vp-ui, .vp-controls, .vr-fullscreen," +
+                ".vp-stereo, .vp-orientation, .vp-exit-vr").off();
+
+            var arrayClassName = ["video-player", full_class_name, mouseout_class_name, stalled_class_name,
+                loading_class_name, playing_class_name, paused_class_name, ended_class_name, animation_class_name,
+                error_class_name, load_class_name, ready_class_name];
+
+            $main.empty().removeClass(arrayClassName.join(" "));
+
+            $body.removeClass(lock_class_name);
+
+            delete this.video;
+
+            this.status = "destroy";
+        },
         toast: (function () {
             var $elem = $("#vpToast"),
                 duration = 4000,
@@ -534,7 +572,7 @@
             }
         }());
 
-        var _videoJs = this;
+        var _vr = this;
 
         /**
          * start VR variable
@@ -547,7 +585,6 @@
 
         var orientationControls;
 
-        var vrRequestID;
         /**
          * end VR variable
          */
@@ -584,7 +621,7 @@
             isVR = false;
         }
 
-        _videoJs.isVR = isVR;
+        _vr.isVR = isVR;
 
         var $main = $(elem),
             $video = $.createElem("video", "vp-video"),             // video object
@@ -621,6 +658,10 @@
             "playsinline": "",
             "x-webkit-airplay": "allow"
         });
+
+        if(config.autoplay) {
+            $video.attr("autoplay", true);
+        }
 
 
         $video.attr("src", config.src);
@@ -661,8 +702,8 @@
             return this;
         }
 
-        _videoJs.video = $video;
-        _videoJs.main = $main;
+        _vr.video = $video;
+        _vr.main = $main;
 
         $currentTime.text("00:00");
         $duration.text("00:00");
@@ -708,7 +749,7 @@
             function set() {
                 clearTimeout(timeoutID);
                 timeoutID = setTimeout(function () {
-                    if (!video.paused) {
+                    if (!video.paused && _vr.status !== "destroy") {
                         $main.addClass(mouseout_class_name);
                     }
                 }, controlDisplayTime);
@@ -904,16 +945,16 @@
         }).on("durationchange", function () {  // 资源长度发生改变
             var duration = this.duration;
 
-            _videoJs.duration = duration;
+            _vr.duration = duration;
             $duration.text(formatSecond(duration));
         }).on("loadedmetadata", function () {  // 获取资源长度
             var duration = this.duration;
 
             $duration.text(formatSecond(duration));
-            _videoJs.duration = duration;
+            _vr.duration = duration;
         }).on("loadeddata", function () {  // 在当前播放位置加载媒体数据时引发，视频可以开始播放
             this.controls = false;
-            _videoJs.readyState = this.readyState;
+            _vr.readyState = this.readyState;
         }).one("play", function () {
             $main.off("click", startClickHandler);
 
@@ -953,7 +994,7 @@
                     start = timeRanges.start(i);
                     end = timeRanges.end(i);
                     if (current >= start && current <= end) {
-                        $buffer.css("width", timeRanges.end(i) / _videoJs.duration * 100 + "%");
+                        $buffer.css("width", timeRanges.end(i) / _vr.duration * 100 + "%");
                         break;
                     }
                 }
@@ -1230,16 +1271,16 @@
          */
         function vrMouseWheel(event) {
             if (event.wheelDeltaY) {  // WebKit
-                _videoJs.fov -= event.wheelDeltaY * 0.05;
+                _vr.fov -= event.wheelDeltaY * 0.05;
             } else if (event.wheelDelta) {  // Opera / Explorer 9
-                _videoJs.fov -= event.wheelDelta * 0.05;
+                _vr.fov -= event.wheelDelta * 0.05;
             } else if (event.detail) {  // Firefox
-                _videoJs.fov += event.detail * 1.0;
+                _vr.fov += event.detail * 1.0;
             }
 
-            _videoJs.fov = Math.min(MAX_FOV, Math.max(MIN_FOV, _videoJs.fov));
+            _vr.fov = Math.min(MAX_FOV, Math.max(MIN_FOV, _vr.fov));
 
-            camera.fov = _videoJs.fov;
+            camera.fov = _vr.fov;
             camera.updateProjectionMatrix();
         }
 
@@ -1251,7 +1292,7 @@
 
             renderer.render(scene, camera);
 
-            return _videoJs;
+            return _vr;
         }
 
         function vrTouchStart(event) {
@@ -1303,9 +1344,9 @@
                 vr_moveX = vr_startX - changedTouch.clientX;
                 vr_moveY = changedTouch.clientY - vr_startY;
 
-                vr_lon = vr_moveX / vr_clientHeight * 1.5 * _videoJs.fov / DEFAULT_FOV + vr_endX;
+                vr_lon = vr_moveX / vr_clientHeight * 1.5 * _vr.fov / DEFAULT_FOV + vr_endX;
 
-                vr_lat = vr_moveY / vr_clientHeight * 1.5 * _videoJs.fov / DEFAULT_FOV + vr_endY;
+                vr_lat = vr_moveY / vr_clientHeight * 1.5 * _vr.fov / DEFAULT_FOV + vr_endY;
             }
 
             // 滑动缩放功能
@@ -1318,11 +1359,11 @@
 
                 var moveDistance = Math.sqrt(Math.pow(_x, 2) + Math.pow(_y, 2)) - scaleStartDistance;
 
-                _videoJs.fov = scaleStartFov - moveDistance * 0.2;
+                _vr.fov = scaleStartFov - moveDistance * 0.2;
 
-                _videoJs.fov = Math.min(MAX_FOV, Math.max(MIN_FOV, _videoJs.fov));
+                _vr.fov = Math.min(MAX_FOV, Math.max(MIN_FOV, _vr.fov));
 
-                camera.fov = _videoJs.fov;
+                camera.fov = _vr.fov;
                 camera.updateProjectionMatrix();
             }
         }
@@ -1375,9 +1416,9 @@
                 vr_moveX = vr_startX - event.clientX;
                 vr_moveY = event.clientY - vr_startY;
 
-                vr_lon = vr_moveX / vr_clientHeight * 1.5 * _videoJs.fov / DEFAULT_FOV + vr_endX;
+                vr_lon = vr_moveX / vr_clientHeight * 1.5 * _vr.fov / DEFAULT_FOV + vr_endX;
 
-                vr_lat = vr_moveY / vr_clientHeight * 1.5 * _videoJs.fov / DEFAULT_FOV + vr_endY;
+                vr_lat = vr_moveY / vr_clientHeight * 1.5 * _vr.fov / DEFAULT_FOV + vr_endY;
             }
         }
 
@@ -1412,7 +1453,7 @@
         }, false);
 
         function requestStereo() {
-            _videoJs.isVRView = 1;
+            _vr.isVRView = 1;
 
             renderer = stereoEffect;
 
@@ -1420,7 +1461,7 @@
 
             if (supportOrientation) {
                 orientationControls.connect();
-                _videoJs.isOrientation = 1;
+                _vr.isOrientation = 1;
             }
 
             $body.addClass(lock_class_name);
@@ -1439,16 +1480,16 @@
 
             vrResize();
 
-            return _videoJs;
+            return _vr;
         }
 
         function exitStereo() {
-            _videoJs.isVRView = 0;
+            _vr.isVRView = 0;
 
             renderer = normalEffect;
 
             orientationControls.disconnect();
-            _videoJs.isOrientation = 0;
+            _vr.isOrientation = 0;
             $orientation.removeClass(active_class_name);
 
             fullscreen.exit();
@@ -1465,12 +1506,12 @@
 
             vrResize();
 
-            return _videoJs;
+            return _vr;
         }
 
         function changeOrientation() {
             if (supportOrientation) {
-                if (_videoJs.isOrientation) {
+                if (_vr.isOrientation) {
                     orientationControls.disconnect();
                     $orientation.removeClass(active_class_name);
                 } else {
@@ -1478,12 +1519,12 @@
                     $orientation.addClass(active_class_name);
                 }
 
-                _videoJs.isOrientation = !_videoJs.isOrientation;
+                _vr.isOrientation = !_vr.isOrientation;
             } else {
-                _videoJs.toast(VR_STATE_MESSAGES[1]);
+                _vr.toast(VR_STATE_MESSAGES[1]);
             }
 
-            return _videoJs;
+            return _vr;
         }
 
         if(isVR) {
@@ -1491,7 +1532,7 @@
 
             stereoEffect = new THREE.StereoEffect(renderer);
 
-            camera = new THREE.PerspectiveCamera(_videoJs.fov, elem.clientWidth / elem.clientHeight, 1, 1000);
+            camera = new THREE.PerspectiveCamera(_vr.fov, elem.clientWidth / elem.clientHeight, 1, 1000);
 
             orientationControls = new THREE.DeviceOrientationControls(camera);
 
@@ -1556,7 +1597,7 @@
                     texture.needsUpdate = true;
                 }
 
-                if (_videoJs.isOrientation) {
+                if (_vr.isOrientation) {
                     orientationControls.update();
                 } else {
                     camera.lookAt(target);
@@ -1567,15 +1608,17 @@
 
                 renderer.render(scene, camera);
 
-                vrRequestID = requestAnimationFrame(vrUpload);
+                _vr.vrRequestID = requestAnimationFrame(vrUpload);
             };
 
-            vrUpload();
+            $video.one("play", vrUpload);
 
-            _videoJs.resize = vrResize;
-            _videoJs.requestStereo = requestStereo;
-            _videoJs.exitStereo = exitStereo;
-            _videoJs.changeOrientation = changeOrientation;
+            // vrUpload();
+
+            _vr.resize = vrResize;
+            _vr.requestStereo = requestStereo;
+            _vr.exitStereo = exitStereo;
+            _vr.changeOrientation = changeOrientation;
         }
     };
 
@@ -1595,12 +1638,12 @@
         return new $.fn.init(selector);
     };
 
-    var rtrim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g;
-
-    var expando = "JQ" + (Math.random() + "").replace(/\D/g, ""),
+    var version = "1.3.0",
+        expando = "JQ" + (version + Math.random() + "").replace(/\D/g, ""),
         guid = 0;  // globally unique identifier
 
     $.expando = expando;
+    $.version = version;
 
     var _eventsCache = {};
 
@@ -1703,6 +1746,8 @@
         }
     }
 
+    var rtrim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g;
+
     var objToString = Object.prototype.toString;
 
     var arrFn = Array.prototype;
@@ -1723,6 +1768,14 @@
 
     $.isArray = function (arg) {
         return Array.isArray(arg);
+    };
+
+    $.arrayFrom = function (arg) {
+        if (Array.from) {
+            return Array.from(arg);
+        } else {
+            return Array.prototype.slice.call(arg, 0);
+        }
     };
 
     $.isObject = function (arg) {
@@ -1966,9 +2019,23 @@
                 selector = undefined;
             }
 
-            var eventsArr = $.trim(types).split(/\s+/);
+            if ("" === $.trim(types)) {
+                this.each(function (elem) {
+                    var elemGuid = elem[expando];
 
-            if (eventsArr.length > 0) {
+                    if (elemGuid) {
+                        for (var x in _eventsCache) {
+                            _eventsCache[x] = _eventsCache[x].filter(function (item) {
+                                return item.guid !== elemGuid;
+                            });
+
+                            elem.removeEventListener(x, _eventHandler, false);
+                        }
+                    }
+                });
+            } else {
+                var eventsArr = $.trim(types).split(/\s+/);
+
                 this.each(function (elem) {
                     var elemGuid = elem[expando];
 
@@ -2014,15 +2081,15 @@
 
             return this;
         },
-        addClass: function(className) {
-            if("string" === typeof className && (className = $.trim(className))) {
+        addClass: function (className) {
+            if ("string" === typeof className && (className = $.trim(className))) {
                 className = className.split(/\s+/);
 
-                this.each(function(itemNode) {
+                this.each(function (itemNode) {
                     var curClassName = itemNode.className.split(/\s+/);
 
-                    className.forEach(function(itemName) {
-                        if(-1 === curClassName.indexOf(itemName)) {
+                    className.forEach(function (itemName) {
+                        if (-1 === curClassName.indexOf(itemName)) {
                             curClassName.push(itemName);
                         }
                     });
@@ -2033,17 +2100,17 @@
 
             return this;
         },
-        removeClass: function(className) {
-            if("string" === typeof className && (className = $.trim(className))) {
+        removeClass: function (className) {
+            if ("string" === typeof className && (className = $.trim(className))) {
                 className = className.split(/\s+/);
 
-                this.each(function(itemNode) {
+                this.each(function (itemNode) {
                     var curClassName = itemNode.className.split(/\s+/);
 
-                    className.forEach(function(itemName) {
+                    className.forEach(function (itemName) {
                         var index = curClassName.indexOf(itemName);
 
-                        if(-1 !== index) {
+                        if (-1 !== index) {
                             curClassName.splice(index, 1);
                         }
                     });
@@ -2054,20 +2121,20 @@
 
             return this;
         },
-        hasClass: function(className) {
-            if("string" === typeof className && (className = $.trim(className)) && this.length > 0) {
+        hasClass: function (className) {
+            if ("string" === typeof className && (className = $.trim(className)) && this.length > 0) {
                 className = className.split(/\s+/);
 
                 var has = true;
 
-                for(var i = 0; i < this.length; i++) {
+                for (var i = 0; i < this.length; i++) {
                     var itemNode = this[i];
 
-                    has = className.every(function(itemName) {
+                    has = className.every(function (itemName) {
                         return -1 !== itemNode.className.split(/\s+/).indexOf(itemName);
                     });
 
-                    if(!has) {
+                    if (!has) {
                         return false;
                     }
                 }
@@ -2112,6 +2179,50 @@
             }
 
             return this;
+        },
+        empty: function () {
+            this.each(function (elem) {
+                if (elem.childNodes) {
+                    var childNodes = elem.childNodes;
+
+                    childNodes = $.arrayFrom(childNodes);
+
+                    childNodes.forEach(function (item) {
+                        elem.removeChild(item);
+                    });
+                }
+            });
+
+            return this;
+        },
+        remove: function () {
+            this.each(function (elem) {
+                if (elem.parentNode) {
+                    $(elem).off();
+
+                    elem.parentNode.removeChild(elem);
+                }
+            });
+
+            return this;
+        },
+        find: function (selector) {
+            this.selector = selector;
+
+            var arrayElem = [];
+
+            this.each(function (elem) {
+                try {
+                    var htmlCollection = elem.querySelectorAll(selector);
+
+                    htmlCollection = $.arrayFrom(htmlCollection);
+
+                    arrayElem = arrayElem.concat(htmlCollection);
+                } catch (e) {
+                }
+            });
+
+            return $(arrayElem);
         }
     };
 
@@ -2129,7 +2240,7 @@
 
             return _this;
         } else if (/^\[object (NodeList|HTMLCollection)]$/.test(objToString.call(selector))) {
-            var elemArr = Array.prototype.slice.call(selector).filter(function (item) {
+            var elemArr = $.arrayFrom(selector).filter(function (item) {
                 return 1 === item.nodeType;
             });
 
@@ -2144,7 +2255,7 @@
 
             return _this;
         } else if (11 === selector.nodeType) {
-            var fragElemArr = Array.prototype.slice.call(selector.children);
+            var fragElemArr = $.arrayFrom(selector.children);
 
             if (fragElemArr.length > 0) {
                 fragElemArr.forEach(function (item, index) {
@@ -2179,6 +2290,17 @@
                     _this.selector = selector;
                     _this.length = nodeLength;
                 }
+            } else if ($.isArray(selector)) {
+
+                selector = selector.filter(function (item) {
+                    return item.nodeType === 1;
+                });
+
+                selector.forEach(function (item, index) {
+                    _this[index] = item;
+                });
+
+                _this.length = selector.length;
             }
 
             return _this;
