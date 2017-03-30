@@ -284,7 +284,10 @@
         version: VERSION,
         constructor: imageVR,
         setSrc: function(src) {
-            var $image = this.image;
+            var $image = this.$image;
+
+            this.$main.find(".loading-vr").show();
+            this.canvas.style.opacity = 0;
 
             if($image) {
                 $image.attr("src", src);
@@ -297,9 +300,9 @@
 
             cancelAnimationFrame(this.vrRequestID);
 
-            this.image.off();
+            this.$image.off();
 
-            var $main = this.main;
+            var $main = this.$main;
 
             fullscreen.exit();
 
@@ -316,12 +319,10 @@
             $main.empty().removeClass(mainClassName.join(" "));
             $body.removeClass(LOCK_BODY_CLASS_NAME);
 
-            delete this.image;
-
             this.status = "destroy";
         },
         fullscreen: function () {
-            var $main = this.main;
+            var $main = this.$main;
 
             if ($main) {
                 if ($main.hasClass(FULL_MAIN_CLASS_NAME)) {
@@ -440,8 +441,6 @@
         var renderer, scene, camera, normalEffect, stereoEffect, stats;
 
         var mesh, sphere, material, texture;
-
-        var domElement;
 
         var orientationControls;
 
@@ -743,8 +742,8 @@
         var $image = $.createElem("img");
         $image.attr("crossOrigin", "anonymous");
 
-        _vr.image = $image;
-        _vr.main = $(elem);
+        _vr.$image = $image;
+        _vr.$main = $(elem);
         _vr.fov = DEFAULT_FOV;  // 视野（角度）
         _vr.isVRView = 0;       // 是否VR视角
         _vr.isOrientation = 0;  // 陀螺仪控制
@@ -760,11 +759,11 @@
         orientationControls = new THREE.DeviceOrientationControls(camera);
 
         $image.on("change", function() {
-            texture = new THREE.Texture(_vr.image[0]);
+            texture = new THREE.Texture(_vr.$image[0]);
             texture.needsUpdate = true;
         });
 
-        $image.on("load", function() {
+        $image.one("load", function() {
             $controls.append($stereoEffect).append($fullscreen).append($orientation);
             $main.append($controls).append($exitVR).addClass(READY_CLASS_NAME);
 
@@ -775,7 +774,7 @@
                 console.warn("The image size does not conform to the panoramic display, will produce deformation.");
             }
 
-            texture = new THREE.Texture(_vr.image[0]);
+            texture = new THREE.Texture(_vr.$image[0]);
             // texture.needsUpdate = true;
 
             material = new THREE.MeshBasicMaterial({
@@ -862,6 +861,8 @@
 
             texture.needsUpdate = true;
 
+            _vr.canvas.style.opacity = 1;
+
             if("function" === typeof _vr.load) {
                 _vr.load(event);
             }
@@ -879,8 +880,8 @@
         renderer.setSize(elem.clientWidth, elem.clientHeight);
         renderer.setClearColor(0x666666);
         renderer.setPixelRatio(window.devicePixelRatio || 1);
-        domElement = renderer.domElement;
-        $main.append(domElement);
+        _vr.canvas = renderer.domElement;
+        $main.append(_vr.canvas);
 
         // 性能检测
         /*stats = new Stats();

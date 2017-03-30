@@ -64,9 +64,13 @@
     require(["require", "three", "three-extend", "vr-image"], function (require) {
         var imageVR = require("vr-image");
 
-        var vr = imageVR(document.getElementById("container"));
+        var vr = imageVR(document.getElementById("container"), {
+            src: "img/01.jpg"
+        });
 
-        vr.setSrc("img/vr@4000.jpg");
+        /*setTimeout(function () {
+            vr.setSrc("img/vr@4000.jpg");
+        }, 4000);*/
 
         console.log(vr);
 

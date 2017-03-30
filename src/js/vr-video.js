@@ -436,7 +436,7 @@
         version: VERSION,
         constructor: videoVR,
         fullscreen: function () {
-            var $main = this.main;
+            var $main = this.$main;
 
             if ($main) {
                 if ($main.hasClass(full_class_name)) {
@@ -452,12 +452,12 @@
             return this;
         },
         setSrc: function(src) {
-            var $video = this.video;
+            var $video = this.$video;
 
             if($video) {
                 $video.attr("src", src);
-                this.main.removeClass(error_class_name + " " + playing_class_name).addClass(paused_class_name);
-                this.main[0].querySelector(".message").innerHTML = "";
+                this.$main.removeClass(error_class_name + " " + playing_class_name).addClass(paused_class_name);
+                this.$main[0].querySelector(".message").innerHTML = "";
 
                 try {
                     $video[0].load();
@@ -474,9 +474,11 @@
 
             cancelAnimationFrame(this.vrRequestID);
 
-            this.video.off();
+            this.$video.off();
 
-            var $main = this.main;
+            this.$video[0].src = "";
+
+            var $main = this.$main;
 
             $main.off();
 
@@ -500,8 +502,6 @@
             $main.empty().removeClass(arrayClassName.join(" "));
 
             $body.removeClass(lock_class_name);
-
-            delete this.video;
 
             this.status = "destroy";
         },
@@ -580,8 +580,6 @@
         var renderer, scene, camera, normalEffect, stereoEffect, stats;
 
         var mesh, sphere, material, texture;
-
-        var domElement;
 
         var orientationControls;
 
@@ -702,8 +700,8 @@
             return this;
         }
 
-        _vr.video = $video;
-        _vr.main = $main;
+        _vr.$video = $video;
+        _vr.$main = $main;
 
         $currentTime.text("00:00");
         $duration.text("00:00");
@@ -1565,9 +1563,9 @@
             renderer.setSize(elem.clientWidth, elem.clientHeight);
             renderer.setClearColor(0x666666);
             renderer.setPixelRatio(window.devicePixelRatio || 1);
-            domElement = renderer.domElement;
-            $(domElement).addClass("vp-video");
-            $main.append(domElement);
+            _vr.canvas = renderer.domElement;
+            $(_vr.canvas).addClass("vp-video");
+            $main.append(_vr.canvas);
 
             renderer.render(scene, camera);
 

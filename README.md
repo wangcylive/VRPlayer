@@ -19,6 +19,7 @@ config = {
 	poster: "",  // media poster
 	ratio: 2/3,  // media height width ratio
 	vr: boolean  // default true, if false play the original video
+	autoplay: Boolean  // default false
 }
 ```
 

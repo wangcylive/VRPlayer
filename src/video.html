@@ -59,9 +59,14 @@
 //            ratio: 3 / 5
     });
 
+    /*setTimeout(function () {
+        fn.setSrc("img/02.mp4");
+
+    }, 4000);*/
+
     console.log(fn);
 
-    fn.video.on("error", function() {
+    fn.$video.on("error", function() {
         console.log(this.error);
     });
 
