@@ -54,7 +54,7 @@
             weChat: /MicroMessenger/i.test(u),
             qq: /MQQBrowser/i.test(u),
             uc: /UCBrowser/i.test(u),
-            chrome: /Chrome\/[\d\.]+ Mobile Safari\/[\d\.]+$/i.test(u),
+            chrome: /Chrome\/[\d\\.]+ Mobile Safari\/[\d\\.]+$/i.test(u),
             firefox: /Firefox/i.test(u),
             ie: /MSIE/i.test(u),
             ie11: /Trident\/7\.0/i.test(u),

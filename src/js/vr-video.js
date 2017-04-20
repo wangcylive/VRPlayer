@@ -1,10 +1,18 @@
 /**
  * Created by Wangcy on 2016/7/11.
  * Bugs
- * Android QQ|UC|百度 等一系列浏览器 video 被系统播放器挟持,不能使用 video 作为材质渲染,
+ *
+ * Android
+ * UC|百度 等一系列浏览器 video 被系统播放器挟持,不能使用 video 作为材质渲染,
  * 欧朋,猎豹等浏览器 video 用作材质没有画面,只有声音,
  * Android 平台目前只有 chrome, firefox, 360 可以正常观看 VR 视频, 视频分辨率不能大于2K, 否则无法解码
- * IOS 平台 video 必须同域
+ *
+ * QQ video
+ * > TBS/036849 | > MQQBrowser/7.1 版本
+ * 添加 x5-video-player-type: "h5" 可实现层内播放
+ *
+ * IOS
+ * video 必须同域
  * iphone video 元素需要添加 webkit-playsinline playsinline
  *
  * window IE11 以下不支持 webGL，IE11不支持渲染 video
@@ -87,13 +95,24 @@
             weChat: /MicroMessenger/i.test(u),
             qq: /MQQBrowser/i.test(u),
             uc: /UCBrowser/i.test(u),
-            chrome: /Chrome\/[\d\.]+ Mobile Safari\/[\d\.]+$/i.test(u),
+            chrome: /Chrome\/[\d\\.]+ Mobile Safari\/[\d\\.]+$/i.test(u),
             firefox: /Firefox/i.test(u),
             ie: /MSIE/i.test(u),
             ie11: /Trident\/7\.0/i.test(u),
             edge: /Edge/i.test(u)
         }
     }());
+
+    /**
+     * > TBS/036849 | > MQQBrowser/7.1 版本 可支持 x5-video-player-type
+     * @returns {boolean}
+     */
+    function x5VideoPlayerType() {
+        var TBS = navigator.userAgent.match(/TBS\/(\d+)/),
+            MQQ = navigator.userAgent.match(/MQQBrowser\/([\d\\.]+)/);
+
+        return !!(TBS && Number(TBS[1]) >= 36849 || MQQ && Number(MQQ[1]) >= 7.1);
+    }
 
     var supportWebGL = (function() {
         var canvas = doc.createElement("canvas"),
@@ -116,9 +135,11 @@
 
     var supportVR = supportWebGL;
 
-    // Android Chrome, Firefox 以外都不支持 VR 视频
-    if (browser.android && (!browser.chrome && !browser.firefox || browser.qq || browser.uc) || browser.ie || browser.ie11) {
+    // Android Chrome, Firefox, QQ浏览器 以外都不支持 VR 视频
+    if (browser.android && (!browser.chrome && !browser.firefox) || browser.ie || browser.ie11) {
         supportVR = false;
+
+        supportVR = x5VideoPlayerType();
     }
 
     root.requestAnimationFrame = root.requestAnimationFrame || root.mozRequestAnimationFrame ||
@@ -214,7 +235,7 @@
 
     // 格式化时间，转为为"h:m:s"格式
     function formatSecond(num) {
-        num = typeof num == "number" ? num : parseFloat(num);
+        num = typeof num === "number" ? num : parseFloat(num);
 
         var setDouble = function (num) {
             return num >= 10 ? num : "0" + num;
@@ -654,13 +675,14 @@
             "preload": "none",
             "webkit-playsinline": "",
             "playsinline": "",
-            "x-webkit-airplay": "allow"
+            "x-webkit-airplay": "allow",
+            "x5-video-player-type": "h5",
+            "x5-video-player-fullscreen": "true"
         });
 
         if(config.autoplay) {
             $video.attr("autoplay", true);
         }
-
 
         $video.attr("src", config.src);
 
