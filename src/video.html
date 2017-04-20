@@ -24,12 +24,13 @@
             height: 30px;
         }
 
-        #container{height: 300px;}
+        /*#container{height: 300px;}*/
     </style>
 </head>
 <body>
 
 <button class="btn-destroy">destroy</button>
+
 <div id="container" class="">
 
 </div>
@@ -37,7 +38,7 @@
 <!--<script src="js/require.js"></script>-->
 <script src="js/three.min.js"></script>
 <script src="js/three-extend.min.js"></script>
-<script src="js/vr-video.js?ajfkafkasfjkasf"></script>
+<script src="js/vr-video.js"></script>
 <script>
     /*require.config({
         baseUrl: "./js",
@@ -57,6 +58,12 @@
 //            src: "img/02.mp4"
 //            src: "http://video.qncdn.720yun.com/@/23d2aqOfynv/pc_1463207245.mp4?wsiphost=local",
 //            ratio: 3 / 5
+    });
+
+    fn.deviceOrientation(function (supported) {
+        if(supported) {
+            fn.changeOrientation();
+        }
     });
 
     /*setTimeout(function () {

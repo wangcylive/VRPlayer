@@ -53,7 +53,7 @@
         MIN_FOV = 30,      // camera 视角最大值
         MAX_FOV = 120;     // camera 视角最小值
 
-    var supportOrientation = 0;  // 是否支持陀螺仪,加载后检测是否支持
+    var supportOrientation = false;  // 是否支持陀螺仪,加载后检测是否支持
 
     var VR_STATE_MESSAGES = [
         "您的浏览器不支持WebGL",
@@ -221,14 +221,19 @@
         return is;
     }());
 
+    var testedOrientation = false;
+
+    var deviceOrientationCallback = [];
+
     // 支持陀螺仪检测
     $root.one("deviceorientation", function (event) {
+        testedOrientation = true;
+
         supportOrientation = null !== event.alpha;
         videoVR.fn.supportOrientation = supportOrientation;
-        videoVR.fn.testedOrientation = true;
 
-        if("function" === typeof videoVR.deviceorientation) {
-            videoVR.deviceorientation(supportOrientation);
+        while (deviceOrientationCallback.length) {
+            deviceOrientationCallback.shift()(supportOrientation);
         }
     });
 
@@ -471,6 +476,15 @@
                 }
             }
             return this;
+        },
+        deviceOrientation: function(callback) {
+            if("function" === typeof callback) {
+                if(testedOrientation) {
+                    callback(supportOrientation);
+                } else {
+                    deviceOrientationCallback.push(callback);
+                }
+            }
         },
         setSrc: function(src) {
             var $video = this.$video;
@@ -1305,12 +1319,16 @@
         }
 
         function vrResize() {
-            camera.aspect = elem.clientWidth / elem.clientHeight;
-            camera.updateProjectionMatrix();
+            clearTimeout(vrResize.timeoutID);
 
-            renderer.setSize(elem.clientWidth, elem.clientHeight);
+            vrResize.timeoutID = setTimeout(function () {
+                camera.aspect = elem.clientWidth / elem.clientHeight;
+                camera.updateProjectionMatrix();
 
-            renderer.render(scene, camera);
+                renderer.setSize(elem.clientWidth, elem.clientHeight);
+
+                renderer.render(scene, camera);
+            }, 100);
 
             return _vr;
         }

@@ -74,11 +74,11 @@
 
         console.log(vr);
 
-        imageVR.deviceorientation = function() {
-            if(vr.supportOrientation) {
+        vr.deviceOrientation(function (supported) {
+            if(supported) {
                 vr.changeOrientation();
             }
-        };
+        });
 
         document.querySelector(".btn-destroy").addEventListener("click", function () {
             vr.destroy();

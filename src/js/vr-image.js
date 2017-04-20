@@ -39,7 +39,7 @@
         MIN_FOV = 30,      // camera 视角最大值
         MAX_FOV = 120;     // camera 视角最小值
 
-    var supportOrientation = 0;  // 是否支持陀螺仪,加载后检测是否支持
+    var supportOrientation = false;  // 是否支持陀螺仪,加载后检测是否支持
 
     var browser = (function () {
         var u = navigator.userAgent;
@@ -162,14 +162,19 @@
         return is;
     }());
 
+    var testedOrientation = false;
+
+    var deviceOrientationCallback = [];
+
     // 支持陀螺仪检测
     $root.one("deviceorientation", function (event) {
+        testedOrientation = true;
+
         supportOrientation = null !== event.alpha;
         imageVR.fn.supportOrientation = supportOrientation;
-        imageVR.fn.testedOrientation = true;
 
-        if("function" === typeof imageVR.deviceorientation) {
-            imageVR.deviceorientation(supportOrientation);
+        while (deviceOrientationCallback.length) {
+            deviceOrientationCallback.shift()(supportOrientation);
         }
     });
 
@@ -291,6 +296,15 @@
 
             if($image) {
                 $image.attr("src", src);
+            }
+        },
+        deviceOrientation: function(callback) {
+            if("function" === typeof callback) {
+                if(testedOrientation) {
+                    callback(supportOrientation);
+                } else {
+                    deviceOrientationCallback.push(callback);
+                }
             }
         },
         destroy: function () {
@@ -493,16 +507,20 @@
         }
 
         function vrResize() {
-            camera.aspect = elem.clientWidth / elem.clientHeight;
-            camera.updateProjectionMatrix();
+            clearTimeout(vrResize.timeoutID);
 
-            renderer.setSize(elem.clientWidth, elem.clientHeight);
+            vrResize.timeoutID = setTimeout(function () {
+                camera.aspect = elem.clientWidth / elem.clientHeight;
+                camera.updateProjectionMatrix();
 
-            if(browser.mobile && browser.uc) {
-                texture.needsUpdate = true;
-            }
+                renderer.setSize(elem.clientWidth, elem.clientHeight);
 
-            renderer.render(scene, camera);
+                if(browser.mobile && browser.uc) {
+                    texture.needsUpdate = true;
+                }
+
+                renderer.render(scene, camera);
+            }, 100);
 
             return _vr;
         }
