@@ -873,7 +873,7 @@
             _vr.requestStereo = requestStereo;
             _vr.exitStereo = exitStereo;
             _vr.changeOrientation = changeOrientation;
-        }).on("load", function() {
+        }).on("load", function(event) {
             $loading.hide();
             $message.hide();
 
