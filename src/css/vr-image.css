@@ -1,6 +1,6 @@
 @media screen {
     .vr-lock {
-        overflow: hidden;
+        /*overflow: hidden;*/
     }
     .image-vr {
         position: relative;
@@ -92,7 +92,7 @@
         cursor: default;
     }
     .vr-toast {
-        position: fixed;
+        position: absolute;
         top: 50%;
         left: 50%;
         z-index: 999;
@@ -108,7 +108,7 @@
         border-radius: .5em;
         margin: -1.65em 0 0 -7.8em;
     }
-    .image-vr.is-stereo .controls-vr {
+    .image-vr.is-vr .controls-vr {
         display: none;
     }
     .image-vr .controls-vr {
@@ -156,8 +156,8 @@
 
     /*全屏效果*/
     .is-fullscreen.image-vr,
-    .is-stereo.image-vr {
-        position: fixed !important;
+    .is-vr.image-vr{
+        position: absolute !important;
         left: 0 !important;
         top: 0 !important;
         z-index: 99999 !important;

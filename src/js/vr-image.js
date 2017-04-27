@@ -19,13 +19,13 @@
         $root = $(root),
         $body = $(body);
 
-    var VERSION = "1.2.0";
+    var VERSION = "1.3.0";
 
-    var ACTIVE_CLASS_NAME = "active",
-        LOCK_BODY_CLASS_NAME = "vr-lock",
-        FULL_MAIN_CLASS_NAME = "is-fullscreen",
-        READY_CLASS_NAME = "is-ready",
-        STEREO_CLASS_NAME = "is-stereo";
+    var active_class_name = "active",
+        lock_body_class_name = "vr-lock",
+        full_main_class_name = "is-fullscreen",
+        ready_class_name = "is-ready",
+        vr_class_name = "is-vr";
 
     var MESSAGES = [
         "您的浏览器不支持全景图片",
@@ -328,10 +328,10 @@
 
             fullscreen.off();
 
-            var mainClassName = ["image-vr", FULL_MAIN_CLASS_NAME, READY_CLASS_NAME, STEREO_CLASS_NAME];
+            var mainClassName = ["image-vr", full_main_class_name, ready_class_name, vr_class_name];
 
             $main.empty().removeClass(mainClassName.join(" "));
-            $body.removeClass(LOCK_BODY_CLASS_NAME);
+            // $body.removeClass(LOCK_BODY_CLASS_NAME);
 
             this.status = "destroy";
         },
@@ -339,14 +339,14 @@
             var $main = this.$main;
 
             if ($main) {
-                if ($main.hasClass(FULL_MAIN_CLASS_NAME)) {
+                if ($main.hasClass(full_main_class_name)) {
                     fullscreen.exit();
-                    $body.removeClass(LOCK_BODY_CLASS_NAME);
-                    $main.removeClass(FULL_MAIN_CLASS_NAME);
+                    // $body.removeClass(LOCK_BODY_CLASS_NAME);
+                    $main.removeClass(full_main_class_name);
                 } else {
                     fullscreen.request();
-                    $body.addClass(LOCK_BODY_CLASS_NAME);
-                    $main.addClass(FULL_MAIN_CLASS_NAME);
+                    // $body.addClass(LOCK_BODY_CLASS_NAME);
+                    $main.addClass(full_main_class_name);
                 }
             }
             return this;
@@ -507,20 +507,19 @@
         }
 
         function vrResize() {
-            clearTimeout(vrResize.timeoutID);
+            var width = elem.clientWidth,
+                height = elem.clientHeight;
 
-            vrResize.timeoutID = setTimeout(function () {
-                camera.aspect = elem.clientWidth / elem.clientHeight;
-                camera.updateProjectionMatrix();
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
 
-                renderer.setSize(elem.clientWidth, elem.clientHeight);
+            renderer.setSize(width, height);
 
-                if(browser.mobile && browser.uc) {
-                    texture.needsUpdate = true;
-                }
+            if(browser.mobile && browser.uc) {
+                texture.needsUpdate = true;
+            }
 
-                renderer.render(scene, camera);
-            }, 100);
+            renderer.render(scene, camera);
 
             return _vr;
         }
@@ -694,8 +693,8 @@
                 _vr.isOrientation = 1;
             }
 
-            $body.addClass(LOCK_BODY_CLASS_NAME);
-            $main.addClass(STEREO_CLASS_NAME);
+            // $body.addClass(LOCK_BODY_CLASS_NAME);
+            $main.addClass(vr_class_name);
 
             $exitVR.show();
 
@@ -718,21 +717,21 @@
 
             renderer = normalEffect;
 
-            orientationControls.disconnect();
+            /*orientationControls.disconnect();
             _vr.isOrientation = 0;
-            $orientation.removeClass(ACTIVE_CLASS_NAME);
+            $orientation.removeClass(ACTIVE_CLASS_NAME);*/
 
             fullscreen.exit();
 
-            $body.removeClass(LOCK_BODY_CLASS_NAME);
-            $main.removeClass(STEREO_CLASS_NAME);
+            // $body.removeClass(LOCK_BODY_CLASS_NAME);
+            $main.removeClass(vr_class_name);
 
             clearTimeout(hideExitVRTimeoutID);
             $exitVR.hide();
 
             $main.off("click", hideExitVR);
 
-            $fullscreen.removeClass(ACTIVE_CLASS_NAME);
+            $fullscreen.removeClass(active_class_name);
 
             vrResize();
 
@@ -743,10 +742,10 @@
             if (supportOrientation) {
                 if (_vr.isOrientation) {
                     orientationControls.disconnect();
-                    $orientation.removeClass(ACTIVE_CLASS_NAME);
+                    $orientation.removeClass(active_class_name);
                 } else {
                     orientationControls.connect();
-                    $orientation.addClass(ACTIVE_CLASS_NAME);
+                    $orientation.addClass(active_class_name);
                 }
 
                 _vr.isOrientation = !_vr.isOrientation;
@@ -783,7 +782,7 @@
 
         $image.one("load", function() {
             $controls.append($stereoEffect).append($fullscreen).append($orientation);
-            $main.append($controls).append($exitVR).addClass(READY_CLASS_NAME);
+            $main.append($controls).append($exitVR).addClass(ready_class_name);
 
             var width = this.width,
                 height = this.height;
@@ -834,9 +833,9 @@
             // 全屏事件改变触发
             fullscreen.on(function () {  // chrome 仿移动浏览器退出全屏未触发事件
                 if (doc[fullscreen.fullscreenElement] !== doc.documentElement) {
-                    $body.removeClass(LOCK_BODY_CLASS_NAME);
-                    $main.removeClass(FULL_MAIN_CLASS_NAME);
-                    $fullscreen.removeClass(ACTIVE_CLASS_NAME);
+                    // $body.removeClass(LOCK_BODY_CLASS_NAME);
+                    $main.removeClass(full_main_class_name);
+                    $fullscreen.removeClass(active_class_name);
                 }
 
                 vrResize();
@@ -895,9 +894,9 @@
             $image.attr("src", config.src);
         }
 
-        renderer.setSize(elem.clientWidth, elem.clientHeight);
         renderer.setClearColor(0x666666);
         renderer.setPixelRatio(window.devicePixelRatio || 1);
+        renderer.setSize(elem.clientWidth, elem.clientHeight);
         _vr.canvas = renderer.domElement;
         $main.append(_vr.canvas);
 

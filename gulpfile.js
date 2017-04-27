@@ -15,7 +15,7 @@ var gulp = require("gulp"),
     gulpif = require("gulp-if"),
     rename = require("gulp-rename");
 
-gulp.task("compress", function() {
+gulp.task("default", function() {
     gulp.src([
         "./src/js/three-extend.js",
         "./src/js/vr-image.js",

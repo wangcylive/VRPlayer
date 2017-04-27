@@ -1,6 +1,6 @@
 @media screen {
     .vr-lock {
-        overflow: hidden;
+        /*overflow: hidden;*/
     }
     .video-player {
         position: relative;
@@ -280,7 +280,7 @@
         background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF8AAABkBAMAAAAS3/GoAAAAA3NCSVQICAjb4U/gAAAAMFBMVEX///////////////////////////////////////////////////////////////9Or7hAAAAAEHRSTlMAESIzRFVmd4iZqrvM3e7/dpUBFQAAAAlwSFlzAAALEgAACxIB0t1+/AAAABx0RVh0U29mdHdhcmUAQWRvYmUgRmlyZXdvcmtzIENTNui8sowAAAOTSURBVFiF7Vc9aBRBFJ6724vJXdSgpeSnDQg5xNo7sbDLXaNCGoOlhTFYCILGQrQQTRoFGy+CYHkpBcETC7HRI7ERLE5Mp8X5m5i/fc57O7M7OzuzO2klr8hs9t63875v3rw3w5hmhWsvnlX0lynmdQBgu+YOmAe0v87+AxDYgitgTgDWHf3zSOAR0hhzA5QAdiqs0AVYdAOMAizzYRjghxugDtDgQxHgtxtgDnwae66s52Gbxo7rSkhAew+wB/ivAbnTdy7sBrDxmJeON7sABPZ6twA/qyzrAPhi9ssfMwD8d/zPFmOHTw3p/lM9+NbQATsNNs4RJ6/z4jkb9z+Kc+9UNABWQF6a3xOVadXf61G0axoAP1CWVDZUwAnxshED0OhJANyM/HNdRRBl4ei3EKCU2n3836fHmwCbLJlLGP+VQzc4RTbV9d+O4bsDFD4SqRgBK1x1HsQ9nGcTBa4HAc4AvDIC8KsTMrJVks5H3CBNlAQQF9kqKVVauJq8nwMCkwBSuxiSX0ZAIHITQ0sC/oTyPjzXoQYuASMAP9MAKyQoj6LJJRPybqYA/DFSnS8vl6dGP3LtahLQEj2uB78EYF1EsYCSLdGP57mwElCl3EMJlwSAgCX0Lcl155m2JgH5q8Ee8G4zAaC+3Y+LVYBAVxK2JQCaKYAlSuWaFBZcAFVJYsQK4JN/x3GAXMuSRJ8VwBVcFIBFmm9Lvg4fNRt/PhQB5H6kxKVdYbVSAKhLEqWs0145ONuVxbKwfE8+WWww2DsRicmMk9h+gMtMJVF4+THNH7fzNFNJZNnBoBhFJLJsQoTi2eTXrS6PpyGJDOM7IEQ6kZgTuxP1dSLRlKnmZaSEtHZYxjtuJKLjbN3psJ2LqrgbCQ9LV/joQIKXrs/y2YlEWVHficQBpXU5kZiQ9YU5kuBVNerxLiTaak1xSKdcbMcPZt9i4hcdhz1RUpaBAgy2n91G49JXQfQEq80oqgYTZtysOuIKJiyfdZ/09LI4nyFsOcrVwIZFF7dZVf9gUfRWm7XjnBn2Wjyf2KyYbDYj2lEtbsPJVMAjyLQV0DLsmGZKPvWZVB9MOTvXTeuKHWjV7F/oGVeJf8avGQGTZs2LYFm8frDQ4wkJTwwBdcCS/KiFP6u/LbZtM1PLAP/BGdXO3sXDuW/ZXeLknrQPZn/Gjpj9NxKXjtAumfy3UmpW7n7S/2tqjctd7MbdP91S4/kH9qrpQE071DUAAAAASUVORK5CYII=);
     }
     .video-player .vp-exit-vr {
-        position: fixed;
+        position: absolute;
         left: 50%;
         bottom: 30px;
         z-index: 1;
@@ -297,7 +297,7 @@
         cursor: default;
     }
     .vp-toast {
-        position: fixed;
+        position: absolute;
         top: 50%;
         left: 50%;
         z-index: 999;
@@ -484,8 +484,8 @@
 
     /*全屏效果*/
     .is-fullscreen.video-player,
-    .is-vr.video-player {
-        position: fixed !important;
+    .is-vr.video-player{
+        position: absolute !important;
         left: 0 !important;
         top: 0 !important;
         z-index: 99999 !important;

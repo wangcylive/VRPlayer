@@ -28,12 +28,13 @@
         $doc = $(doc),
         $body = $(body);
 
-    var VERSION = "1.2.0";
+    var VERSION = "1.3.0";
 
     var zoom_out_class_name = "vp-zoomOut",
         active_class_name = "active",
         lock_class_name = "vr-lock",
         full_class_name = "is-fullscreen",
+        vr_class_name = "is-vr",
         mouseout_class_name = "is-mouseout",
         stalled_class_name = "is-stalled",
         loading_class_name = "is-loading",
@@ -467,11 +468,11 @@
             if ($main) {
                 if ($main.hasClass(full_class_name)) {
                     fullscreen.exit();
-                    $body.removeClass(lock_class_name);
+                    // $body.removeClass(lock_class_name);
                     $main.removeClass(full_class_name);
                 } else {
                     fullscreen.request();
-                    $body.addClass(lock_class_name);
+                    // $body.addClass(lock_class_name);
                     $main.addClass(full_class_name);
                 }
             }
@@ -536,7 +537,7 @@
 
             $main.empty().removeClass(arrayClassName.join(" "));
 
-            $body.removeClass(lock_class_name);
+            // $body.removeClass(lock_class_name);
 
             this.status = "destroy";
         },
@@ -1271,12 +1272,12 @@
         $fullscreen.on("click", function () {
             if ($main.hasClass(full_class_name)) {
                 fullscreen.exit();
-                $body.removeClass(lock_class_name);
+                // $body.removeClass(lock_class_name);
                 $main.removeClass(full_class_name);
                 $fullscreen.removeClass(active_class_name);
             } else {
                 fullscreen.request();
-                $body.addClass(lock_class_name);
+                // $body.addClass(lock_class_name);
                 $main.addClass(full_class_name);
                 $fullscreen.addClass(active_class_name);
             }
@@ -1289,7 +1290,7 @@
         // 全屏事件改变触发
         fullscreen.on(function () {  // TODO chrome 仿移动浏览器退出全屏未触发事件
             if (doc[fullscreen.fullscreenElement] !== doc.documentElement) {
-                $body.removeClass(lock_class_name);
+                // $body.removeClass(lock_class_name);
                 $main.removeClass(full_class_name);
                 $fullscreen.removeClass(active_class_name);
             }
@@ -1319,16 +1320,15 @@
         }
 
         function vrResize() {
-            clearTimeout(vrResize.timeoutID);
+            var width = elem.clientWidth,
+                height = elem.clientHeight;
 
-            vrResize.timeoutID = setTimeout(function () {
-                camera.aspect = elem.clientWidth / elem.clientHeight;
-                camera.updateProjectionMatrix();
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
 
-                renderer.setSize(elem.clientWidth, elem.clientHeight);
+            renderer.setSize(width, height);
 
-                renderer.render(scene, camera);
-            }, 100);
+            renderer.render(scene, camera);
 
             return _vr;
         }
@@ -1502,8 +1502,8 @@
                 _vr.isOrientation = 1;
             }
 
-            $body.addClass(lock_class_name);
-            $main.addClass("is-vr");
+            // $body.addClass(lock_class_name);
+            $main.addClass(vr_class_name);
 
             $exitVR.show();
 
@@ -1526,14 +1526,14 @@
 
             renderer = normalEffect;
 
-            orientationControls.disconnect();
+            /*orientationControls.disconnect();
             _vr.isOrientation = 0;
-            $orientation.removeClass(active_class_name);
+            $orientation.removeClass(active_class_name);*/
 
             fullscreen.exit();
 
-            $body.removeClass(lock_class_name);
-            $main.removeClass("is-vr");
+            // $body.removeClass(lock_class_name);
+            $main.removeClass(vr_class_name);
 
             clearTimeout(hideExitVRTimeoutID);
             $exitVR.hide();
@@ -1594,20 +1594,23 @@
 
             // 条纹展示
             /*var edges = new THREE.EdgesHelper(mesh, 0x666666);
-             scene.add(edges);*/
+            scene.add(edges);*/
 
             // TODO 性能监测
             /*stats = new Stats();
              $body.append(stats.dom);*/
 
-            renderer.setSize(elem.clientWidth, elem.clientHeight);
             renderer.setClearColor(0x666666);
             renderer.setPixelRatio(window.devicePixelRatio || 1);
+            renderer.setSize(elem.clientWidth, elem.clientHeight);
+
             _vr.canvas = renderer.domElement;
             $(_vr.canvas).addClass("vp-video");
             $main.append(_vr.canvas);
 
             renderer.render(scene, camera);
+
+            // renderer = stereoEffect;
 
             $root.on("resize", vrResize);
 
